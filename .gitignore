@@ -1,0 +1,19 @@
+# 環境變數
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 資料檔案
+data/*.csv
+
+# 虛擬環境
+venv/
+env/
+ENV/
+
+# IDE 設定
+.vscode/
+.idea/ 
