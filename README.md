@@ -1,4 +1,3 @@
-# MoneyMemoAI
 # MoneyMemoAI - AI 智能記帳系統 🤖💰
 
 一個結合 AI 的智能記帳系統，能夠自動解析自然語言輸入，輕鬆記錄每日支出。
