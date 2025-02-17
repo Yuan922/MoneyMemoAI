@@ -85,13 +85,10 @@ with tab1:
                     result['日期'] = today
                 
                 new_row = pd.DataFrame([result])
-                new_row['日期'] = pd.to_datetime(new_row['日期'])
                 st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
                 
-                # 儲存時轉換日期格式
-                save_df = st.session_state.df.copy()
-                save_df['日期'] = save_df['日期'].dt.strftime('%Y-%m-%d')
-                save_df.to_csv('data/expenses.csv', index=False)
+                # 直接儲存，不需要額外的日期格式轉換
+                st.session_state.df.to_csv('data/expenses.csv', index=False)
                 st.success("已新增記錄！")
                 
             except Exception as e:
