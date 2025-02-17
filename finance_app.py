@@ -119,7 +119,9 @@ with tab1:
             "價格": st.column_config.NumberColumn(
                 "價格",
                 min_value=0,
-                required=True
+                required=True,
+                format="%d",  # 移除千位分隔符
+                align="left"  # 設定靠左對齊
             ),
             "支付方式": st.column_config.SelectboxColumn(
                 "支付方式",
