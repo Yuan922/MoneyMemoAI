@@ -154,15 +154,9 @@ with tab1:
                         # 儲存更新後的資料
                         st.session_state.df.to_csv('data/expenses.csv', index=False)
                         
-                        # 顯示成功訊息
-                        st.success(f"已更新記錄！")
-                        responses = [
-                            f"好的！已經幫你修改完成了～",
-                            f"更新成功！已經改好了！",
-                            f"記錄已更新，資料修改完成！",
-                            f"沒問題！已經幫你改好了～"
-                        ]
-                        st.write(random.choice(responses))
+                        # 只顯示一個成功訊息
+                        st.success("已更新記錄！")
+                        
                     else:
                         st.error("找不到符合的記錄！請確認搜尋條件是否正確。")
                     
