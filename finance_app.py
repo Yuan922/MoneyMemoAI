@@ -115,9 +115,10 @@ with tab1:
                     
                     請回傳兩個部分的資訊：
                     1. 搜尋條件：用來找到要修改的記錄
-                       - 請盡可能包含多個條件（日期、名稱、金額、類別）來精確定位記錄
+                       - 請盡可能包含多個條件（名稱、金額、類別）來精確定位記錄
                        - 如果提到金額，一定要加入搜尋條件中
                        - 如果提到名稱，一定要加入搜尋條件中
+                       - 不要加入日期條件，除非使用者明確提到特定日期
                     
                     2. 修改內容：要更新的欄位和值
                     
@@ -130,11 +131,11 @@ with tab1:
                     
                     請以以下格式回傳：
                     例如要修改支付方式：
-                    {{"search": {{"名稱": "Suica", "價格": 5000, "類別": "儲值", "日期": "今天"}}, "update": {{"支付方式": "信用卡"}}}}
+                    {{"search": {{"名稱": "Suica", "價格": 5000, "類別": "儲值"}}, "update": {{"支付方式": "信用卡"}}}}
                     
                     注意：
-                    1. 搜尋條件要盡可能完整，至少包含名稱、金額其中之一
-                    2. 如果提到"今天"，請使用今天的日期
+                    1. 搜尋條件要包含名稱、金額其中之一
+                    2. 不要在搜尋條件中加入日期，除非使用者明確指定
                     3. 價格必須是數字
                     4. 名稱要完全匹配（大小寫需一致）
                     
@@ -143,10 +144,6 @@ with tab1:
                     
                     response = model.generate_content(prompt)
                     result = json.loads(response.text)
-                    
-                    # 處理搜尋條件中的"今天"
-                    if "日期" in result["search"] and result["search"]["日期"] == "今天":
-                        result["search"]["日期"] = datetime.now().strftime("%Y-%m-%d")
                     
                     # 在搜尋前先顯示搜尋條件（方便除錯）
                     st.write("正在搜尋符合以下條件的記錄：", result["search"])
@@ -157,7 +154,11 @@ with tab1:
                         if pd.isna(value):  # 處理空值的情況
                             mask &= pd.isna(st.session_state.df[key])
                         else:
-                            mask &= st.session_state.df[key].astype(str) == str(value)
+                            # 將 DataFrame 中的值轉換為字串，並去除可能的空白
+                            df_values = st.session_state.df[key].astype(str).str.strip()
+                            # 將搜尋值也轉換為字串並去除空白
+                            search_value = str(value).strip()
+                            mask &= df_values == search_value
                     
                     if mask.any():
                         # 更新符合條件的記錄
@@ -168,7 +169,7 @@ with tab1:
                         st.session_state.df.to_csv('data/expenses.csv', index=False)
                         st.success("已更新記錄！")
                     else:
-                        st.error("找不到符合的記錄！請確認搜尋條件是否正確。")
+                        st.error("找不到符合的記錄！請嘗試只使用名稱和金額來搜尋。")
                     
                 except Exception as e:
                     st.error(f"處理錯誤: {str(e)}")
