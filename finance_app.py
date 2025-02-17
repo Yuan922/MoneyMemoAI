@@ -113,12 +113,10 @@ with tab1:
                 "名稱",
                 required=True
             ),
-            "價格": st.column_config.NumberColumn(
+            "價格": st.column_config.TextColumn(
                 "價格",
-                min_value=0,
                 required=True,
-                format="%d",
-                align="left"
+                validate="^[0-9]+$"
             ),
             "支付方式": st.column_config.SelectboxColumn(
                 "支付方式",
