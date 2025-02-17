@@ -154,10 +154,10 @@ with tab1:
                         if pd.isna(value):  # 處理空值的情況
                             mask &= pd.isna(st.session_state.df[key])
                         else:
-                            # 將 DataFrame 中的值轉換為字串，並去除可能的空白
-                            df_values = st.session_state.df[key].astype(str).str.strip()
-                            # 將搜尋值也轉換為字串並去除空白
-                            search_value = str(value).strip()
+                            # 將 DataFrame 中的值轉換為字串，去除空白，並轉為小寫
+                            df_values = st.session_state.df[key].astype(str).str.strip().str.lower()
+                            # 將搜尋值也轉換為字串，去除空白，並轉為小寫
+                            search_value = str(value).strip().lower()
                             mask &= df_values == search_value
                     
                     if mask.any():
@@ -169,7 +169,7 @@ with tab1:
                         st.session_state.df.to_csv('data/expenses.csv', index=False)
                         st.success("已更新記錄！")
                     else:
-                        st.error("找不到符合的記錄！請嘗試只使用名稱和金額來搜尋。")
+                        st.error("找不到符合的記錄！請確認名稱和金額是否正確。")
                     
                 except Exception as e:
                     st.error(f"處理錯誤: {str(e)}")
