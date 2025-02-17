@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
@@ -64,14 +64,22 @@ with tab1:
             
             if submit_button and input_text:
                 try:
-                    today = datetime.now().strftime("%Y-%m-%d")
+                    # 設定時區為日本時間
+                    JST = timezone(timedelta(hours=9))
+                    current_time = datetime.now(JST)
+                    
                     prompt = f"""
+                    請從以下文字中提取記帳資訊，並以 JSON 格式回傳。
+                    
+                    當前時間：{current_time.strftime("%Y-%m-%d")}
+                    如果沒有提到具體日期，請使用上述日期。
+                    
                     請從以下文字中提取消費資訊，並以JSON格式回傳，包含以下欄位：
-                    日期（如果沒提到就用 {today}）、類別（早餐/午餐/晚餐/點心/交通/娛樂/儲值/其他）、
+                    日期（如果沒提到就用 {current_time.strftime("%Y-%m-%d")}）、類別（早餐/午餐/晚餐/點心/交通/娛樂/儲值/其他）、
                     名稱、價格、支付方式（現金/信用卡/樂天Pay/PayPay）
                     
                     請確保回傳的格式完全符合以下範例：
-                    {{"日期": "{today}", "類別": "晚餐", "名稱": "拉麵", "價格": 980, "支付方式": "現金"}}
+                    {{"日期": "{current_time.strftime("%Y-%m-%d")}", "類別": "晚餐", "名稱": "拉麵", "價格": 980, "支付方式": "現金"}}
                     
                     注意：
                     1. 日期必須是 YYYY-MM-DD 格式
@@ -87,7 +95,6 @@ with tab1:
                     # 將 JSON 轉換成自然語言回應
                     responses = [
                         f"好的！記下來了～在{result['名稱']}花了{result['價格']}元，用{result['支付方式']}付款的！",
-                        f"收到！{result['類別']}吃{result['名稱']}，花了{result['價格']}元，用{result['支付方式']}付款，已經記錄下來囉！",
                         f"了解！{result['名稱']}花了{result['價格']}元，用{result['支付方式']}付款，已經幫你記下來了～",
                         f"Got it！在{result['名稱']}消費{result['價格']}元，使用{result['支付方式']}，已經記錄好了！"
                     ]
@@ -110,11 +117,15 @@ with tab1:
             
             if submit_button and input_text:
                 try:
+                    # 設定時區為日本時間
+                    JST = timezone(timedelta(hours=9))
+                    current_time = datetime.now(JST)
+                    
                     prompt = f"""
                     你是一個資料庫搜尋專家。請從用戶的修改請求中，提取搜尋條件和要修改的內容。
                     請只關注實際要搜尋和修改的內容，忽略其他描述性文字。
                     
-                    當前時間：{datetime.now().strftime("%Y-%m-%d")}
+                    當前時間：{current_time.strftime("%Y-%m-%d")}
                     如果用戶提到"今天"，請使用上述日期。
 
                     請回傳以下格式的 JSON：
@@ -134,7 +145,7 @@ with tab1:
                     輸出：{{"search": {{"名稱": "komeda"}}, "update": {{"價格": 650}}}}
 
                     輸入："今天的subway改成用現金"
-                    輸出：{{"search": {{"名稱": "subway", "日期": "2024-02-18"}}, "update": {{"支付方式": "現金"}}}}
+                    輸出：{{"search": {{"名稱": "subway", "日期": "{current_time.strftime("%Y-%m-%d")}"}}, "update": {{"支付方式": "現金"}}}}
 
                     輸入："全家消費改成85元"
                     輸出：{{"search": {{"名稱": "全家"}}, "update": {{"價格": 85}}}}
