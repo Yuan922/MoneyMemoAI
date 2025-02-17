@@ -24,16 +24,21 @@ if 'df' not in st.session_state:
     try:
         os.makedirs('data', exist_ok=True)
         try:
-            st.session_state.df = pd.read_csv('data/expenses.csv')
+            # 讀取 CSV 時指定日期欄位的格式
+            st.session_state.df = pd.read_csv('data/expenses.csv', 
+                parse_dates=['日期'])
         except FileNotFoundError:
             st.session_state.df = pd.DataFrame(columns=[
                 '日期', '類別', '名稱', '價格', '支付方式'
             ])
+            # 確保日期欄位的類型為 datetime
+            st.session_state.df['日期'] = pd.to_datetime(st.session_state.df['日期'])
     except Exception as e:
         st.error(f"資料載入錯誤: {str(e)}")
         st.session_state.df = pd.DataFrame(columns=[
             '日期', '類別', '名稱', '價格', '支付方式'
         ])
+        st.session_state.df['日期'] = pd.to_datetime(st.session_state.df['日期'])
 
 # 設定頁面
 st.set_page_config(page_title="AI智能記帳", page_icon="💰", layout="wide")
@@ -75,13 +80,18 @@ with tab1:
                 # 使用更安全的 JSON 解析
                 result = json.loads(response.text)
                 
-                # 確保日期格式正確
+                # 確保新記錄的日期格式正確
                 if result['日期'] == '今天' or result['日期'] == 'today':
                     result['日期'] = today
                 
                 new_row = pd.DataFrame([result])
+                new_row['日期'] = pd.to_datetime(new_row['日期'])
                 st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
-                st.session_state.df.to_csv('data/expenses.csv', index=False)
+                
+                # 儲存時轉換日期格式
+                save_df = st.session_state.df.copy()
+                save_df['日期'] = save_df['日期'].dt.strftime('%Y-%m-%d')
+                save_df.to_csv('data/expenses.csv', index=False)
                 st.success("已新增記錄！")
                 
             except Exception as e:
