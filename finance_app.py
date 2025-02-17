@@ -216,6 +216,14 @@ with tab1:
         st.session_state.df.to_csv('data/expenses.csv', index=False)
         st.success("表格已更新！")
 
+    # 初始化 selected 狀態
+    if 'selected' not in st.session_state:
+        st.session_state.selected = [False] * len(st.session_state.df)
+
+    # 確保 selected 列表長度與 DataFrame 相同
+    if len(st.session_state.selected) != len(st.session_state.df):
+        st.session_state.selected = [False] * len(st.session_state.df)
+
     # 刪除選中的記錄
     selected_indices = [i for i, selected in enumerate(st.session_state.selected) if selected]
     if selected_indices and st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
