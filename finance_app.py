@@ -140,7 +140,12 @@ with tab1:
                     """
                     
                     response = model.generate_content(prompt)
-                    result = json.loads(response.text)
+                    # 清理 AI 回應中可能的格式標記
+                    cleaned_response = response.text.strip()
+                    if cleaned_response.startswith('```') and cleaned_response.endswith('```'):
+                        cleaned_response = cleaned_response[cleaned_response.find('{'):cleaned_response.rfind('}')+1]
+                    
+                    result = json.loads(cleaned_response)
                     
                     # 尋找符合條件的記錄
                     mask = pd.Series(True, index=st.session_state.df.index)
@@ -149,9 +154,9 @@ with tab1:
                             mask &= pd.isna(st.session_state.df[key])
                         else:
                             # 將 DataFrame 中的值轉換為字串，並去除可能的空白
-                            df_values = st.session_state.df[key].astype(str).str.strip()
+                            df_values = st.session_state.df[key].astype(str).str.strip().str.lower()
                             # 將搜尋值也轉換為字串並去除空白
-                            search_value = str(value).strip()
+                            search_value = str(value).strip().lower()
                             mask &= df_values == search_value
                     
                     if mask.any():
@@ -167,7 +172,6 @@ with tab1:
                     
                 except Exception as e:
                     st.error(f"處理錯誤: {str(e)}")
-                    st.error("AI 回應內容：" + response.text)
 
     # 顯示表格
     edited_df = st.data_editor(
