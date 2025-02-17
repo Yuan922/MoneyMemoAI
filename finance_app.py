@@ -113,10 +113,11 @@ with tab1:
                 "名稱",
                 required=True
             ),
-            "價格": st.column_config.TextColumn(
+            "價格": st.column_config.NumberColumn(
                 "價格",
+                min_value=0,
                 required=True,
-                validate="^[0-9]+$"
+                format="%.0f"  # 使用無小數點的格式
             ),
             "支付方式": st.column_config.SelectboxColumn(
                 "支付方式",
@@ -124,7 +125,8 @@ with tab1:
                 required=True
             )
         },
-        hide_index=True
+        hide_index=True,
+        column_order=["日期", "類別", "名稱", "價格", "支付方式"]  # 確保欄位順序
     )
     
     if not edited_df.equals(st.session_state.df):
