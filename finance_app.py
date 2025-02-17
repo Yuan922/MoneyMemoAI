@@ -104,12 +104,11 @@ with tab1:
         use_container_width=True,
         num_rows="dynamic",
         column_config={
-            "日期": st.column_config.DateColumn(
+            "日期": st.column_config.TextColumn(
                 "日期",
-                min_value=datetime(2020, 1, 1),
-                max_value=datetime(2030, 12, 31),
-                format="YYYY-MM-DD",
-                required=True
+                help="請使用 YYYY-MM-DD 格式",
+                required=True,
+                validate="^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
             ),
             "類別": st.column_config.SelectboxColumn(
                 "類別",
