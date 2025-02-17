@@ -224,32 +224,23 @@ with tab1:
     if len(st.session_state.selected) != len(st.session_state.df):
         st.session_state.selected = [False] * len(st.session_state.df)
 
-    # 初始化 show_delete_dialog 狀態
-    if 'show_delete_dialog' not in st.session_state:
-        st.session_state.show_delete_dialog = False
-
     # 刪除選中的記錄
     selected_indices = [i for i, selected in enumerate(st.session_state.selected) if selected]
     if selected_indices:
         if st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
-            st.session_state.show_delete_dialog = True
-
-        # 顯示確認對話框
-        if st.session_state.show_delete_dialog:
-            with st.form(key="delete_confirmation"):
+            dialog = st.dialog("確認刪除")
+            with dialog:
                 st.write("⚠️ 確定要刪除選中的記錄嗎？")
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.form_submit_button("確定", type="primary", use_container_width=True):
+                    if st.button("確定", type="primary", key="confirm_delete", use_container_width=True):
                         st.session_state.df = st.session_state.df.drop(selected_indices).reset_index(drop=True)
                         st.session_state.df.to_csv('data/expenses.csv', index=False)
                         st.session_state.selected = [False] * len(st.session_state.df)
-                        st.session_state.show_delete_dialog = False
                         st.success("已刪除選中的記錄！")
                         st.rerun()
                 with col2:
-                    if st.form_submit_button("取消", type="secondary", use_container_width=True):
-                        st.session_state.show_delete_dialog = False
+                    if st.button("取消", type="secondary", key="cancel_delete", use_container_width=True):
                         st.rerun()
 
 # 分析頁面
