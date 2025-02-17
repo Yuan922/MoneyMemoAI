@@ -111,34 +111,37 @@ with tab1:
             if submit_button and input_text:
                 try:
                     prompt = f"""
-                    請從以下文字中提取修改資訊。這是一個修改請求，需要先找到對應的記錄再進行修改。
-                    
-                    請回傳兩個部分的資訊：
-                    1. 搜尋條件：用來找到要修改的記錄
-                       - 請從使用者描述中提取關鍵字作為搜尋條件
-                       - 如果提到店名，請提取其主要部分（例如：Komeda、komeda 都用 "komeda" 搜尋）
-                       - 如果提到日期，請加入日期條件
-                       - 如果提到金額，可以加入原始金額作為搜尋條件
-                    
-                    2. 修改內容：要更新的欄位和值
-                       - 請清楚指出要修改的欄位和新的值
-                    
-                    可修改的欄位包括：
-                    - 日期（YYYY-MM-DD格式）
-                    - 類別（早餐/午餐/晚餐/點心/交通/娛樂/儲值/其他）
-                    - 名稱
-                    - 價格（數字）
-                    - 支付方式（現金/信用卡/樂天Pay/PayPay）
-                    
-                    請以以下格式回傳：
-                    {{"search": {{"名稱": "komeda"}}, "update": {{"價格": 650}}}}
-                    
-                    注意：
-                    1. 搜尋條件應該要簡單且有效
-                    2. 店名搜尋時不區分大小寫
-                    3. 價格必須是數字
-                    
-                    文字：{input_text}
+                    你是一個資料庫搜尋專家。請從用戶的修改請求中，提取搜尋條件和要修改的內容。
+
+                    資料庫中的記錄格式如下：
+                    - 日期：YYYY-MM-DD
+                    - 類別：早餐/午餐/晚餐/點心/交通/娛樂/儲值/其他
+                    - 名稱：消費地點或項目名稱
+                    - 價格：數字
+                    - 支付方式：現金/信用卡/樂天Pay/PayPay
+
+                    請回傳 JSON 格式的搜尋和修改指令：
+                    {{
+                        "search": {{
+                            // 搜尋條件：盡量使用最少且最關鍵的條件
+                            // 店名請使用最簡單的形式，例如：komeda
+                            // 不要加入日期，除非用戶特別指定其他日期
+                        }},
+                        "update": {{
+                            // 要修改的欄位和新的值
+                        }}
+                    }}
+
+                    範例1：
+                    輸入："今天在komeda消費改成650元"
+                    輸出：{{"search": {{"名稱": "komeda"}}, "update": {{"價格": 650}}}}
+
+                    範例2：
+                    輸入："昨天的subway改成用現金支付"
+                    輸出：{{"search": {{"名稱": "subway"}}, "update": {{"支付方式": "現金"}}}}
+
+                    請處理以下修改請求：
+                    {input_text}
                     """
                     
                     response = model.generate_content(prompt)
@@ -155,11 +158,11 @@ with tab1:
                         if pd.isna(value):  # 處理空值的情況
                             mask &= pd.isna(st.session_state.df[key])
                         else:
-                            # 將 DataFrame 中的值轉換為字串，並去除可能的空白
+                            # 將 DataFrame 中的值和搜尋值都轉換為小寫並去除空白
                             df_values = st.session_state.df[key].astype(str).str.strip().str.lower()
-                            # 將搜尋值也轉換為字串並去除空白
                             search_value = str(value).strip().lower()
-                            mask &= df_values == search_value
+                            # 使用 contains 而不是完全匹配
+                            mask &= df_values.str.contains(search_value, case=False, na=False)
                     
                     if mask.any():
                         # 更新符合條件的記錄
