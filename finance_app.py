@@ -22,10 +22,19 @@ model = genai.GenerativeModel('gemini-pro')
 # 資料儲存結構
 if 'df' not in st.session_state:
     try:
-        st.session_state.df = pd.read_csv('data/expenses.csv')
-        # 將日期欄位轉換為 datetime 格式
-        st.session_state.df['日期'] = pd.to_datetime(st.session_state.df['日期'])
-    except FileNotFoundError:
+        # 確保 data 目錄存在
+        os.makedirs('data', exist_ok=True)
+        
+        # 嘗試讀取現有資料
+        try:
+            st.session_state.df = pd.read_csv('data/expenses.csv')
+        except FileNotFoundError:
+            # 如果檔案不存在，建立空的 DataFrame
+            st.session_state.df = pd.DataFrame(columns=[
+                '日期', '類別', '名稱', '價格', '支付方式'
+            ])
+    except Exception as e:
+        st.error(f"資料載入錯誤: {str(e)}")
         st.session_state.df = pd.DataFrame(columns=[
             '日期', '類別', '名稱', '價格', '支付方式'
         ])
@@ -213,3 +222,13 @@ with tab2:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("尚未有消費記錄")
+
+# 修改資料儲存函數
+def save_data():
+    try:
+        os.makedirs('data', exist_ok=True)
+        st.session_state.df.to_csv('data/expenses.csv', index=False)
+        return True
+    except Exception as e:
+        st.error(f"資料儲存錯誤: {str(e)}")
+        return False
