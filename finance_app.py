@@ -216,17 +216,18 @@ with tab1:
         st.session_state.df.to_csv('data/expenses.csv', index=False)
         st.success("表格已更新！")
 
-    # 刪除按鈕
-    if st.button("🗑️ 刪除所有記錄", type="secondary", use_container_width=True):
+    # 刪除選中的記錄
+    selected_indices = [i for i, selected in enumerate(st.session_state.selected) if selected]
+    if selected_indices and st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
         # 顯示確認對話框
         delete_confirm = st.popover("確認刪除")
         with delete_confirm:
-            st.write("⚠️ 確定要刪除所有記錄嗎？")
+            st.write("⚠️ 確定要刪除選中的記錄嗎？")
             if st.button("確定刪除", type="primary"):
-                # 清空 DataFrame
-                st.session_state.df = pd.DataFrame(columns=["日期", "類別", "名稱", "價格", "支付方式"])
+                st.session_state.df = st.session_state.df.drop(selected_indices).reset_index(drop=True)
                 st.session_state.df.to_csv('data/expenses.csv', index=False)
-                st.success("已刪除所有記錄！")
+                st.session_state.selected = [False] * len(st.session_state.df)
+                st.success("已刪除選中的記錄！")
                 st.rerun()
 
 # 分析頁面
