@@ -6,6 +6,7 @@ import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 import json
+import random
 
 # TODO List:
 # 增加修改現有記錄功能
@@ -72,19 +73,21 @@ with tab1:
                 """
                 
                 response = model.generate_content(prompt)
-                st.write("AI 回應:", response.text)
-                
-                # 使用更安全的 JSON 解析
                 result = json.loads(response.text)
                 
-                # 確保新記錄的日期格式正確
-                if result['日期'] == '今天' or result['日期'] == 'today':
-                    result['日期'] = today
+                # 將 JSON 轉換成自然語言回應
+                responses = [
+                    f"好的！記下來了～在{result['名稱']}花了{result['價格']}元，用{result['支付方式']}付款的！",
+                    f"收到！{result['類別']}吃{result['名稱']}，花了{result['價格']}元，用{result['支付方式']}付款，已經記錄下來囉！",
+                    f"了解！{result['名稱']}花了{result['價格']}元，用{result['支付方式']}付款，已經幫你記下來了～",
+                    f"Got it！在{result['名稱']}消費{result['價格']}元，使用{result['支付方式']}，已經記錄好了！"
+                ]
+                
+                # 隨機選擇一個回應
+                st.write(random.choice(responses))
                 
                 new_row = pd.DataFrame([result])
                 st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
-                
-                # 直接儲存，不需要額外的日期格式轉換
                 st.session_state.df.to_csv('data/expenses.csv', index=False)
                 st.success("已新增記錄！")
                 
