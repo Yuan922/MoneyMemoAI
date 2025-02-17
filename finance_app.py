@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-import speech_recognition as sr
 import google.generativeai as genai
 import os
+from dotenv import load_dotenv
 
 # TODO List:
 # 增加修改現有記錄功能
@@ -14,22 +14,17 @@ import os
 #    - 考慮增加時間範圍限制，例如只能修改最近一週的記錄
 
 # 初始化 Gemini
-gemini_api_key = os.environ.get("GEMINI_API_KEY")
-genai.configure(api_key=gemini_api_key)
-
+load_dotenv()
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-pro')
 
 # 資料儲存結構
 if 'df' not in st.session_state:
     try:
-        # 確保 data 目錄存在
         os.makedirs('data', exist_ok=True)
-        
-        # 嘗試讀取現有資料
         try:
             st.session_state.df = pd.read_csv('data/expenses.csv')
         except FileNotFoundError:
-            # 如果檔案不存在，建立空的 DataFrame
             st.session_state.df = pd.DataFrame(columns=[
                 '日期', '類別', '名稱', '價格', '支付方式'
             ])
@@ -39,119 +34,43 @@ if 'df' not in st.session_state:
             '日期', '類別', '名稱', '價格', '支付方式'
         ])
 
-#TODO 語音辨識函式
+# 設定頁面
+st.set_page_config(page_title="AI智能記帳", page_icon="💰", layout="wide")
+st.title("AI智能記帳 💰")
 
-# Gemini解析函式
-def parse_expense(text, is_modify=False):
-    if is_modify:
-        prompt = f"""
-        請將以下修改請求轉換為JSON格式，包含以下欄位：
-        original_amount(要修改的金額),
-        date(自動填寫今天日期{datetime.now().strftime('%Y-%m-%d')}),
-        category(限：早餐/午餐/晚餐/交通/娛樂/儲值/其他),
-        name(商品名稱),
-        amount(只保留數字),
-        payment(限：現金/信用卡/電子支付/行動支付)
+# 建立分頁
+tab1, tab2 = st.tabs(["記帳", "分析"])
 
-        注意：
-        1. 如果是儲值行為（例如：為 mobile suica 加值），類別請標示為「儲值」
-        2. 如果是使用已儲值的支付方式消費（例如：使用 mobile suica 搭車），類別請標示為「交通」，支付方式標示為「行動支付」
-        3. 請從輸入文字中提取要修改的原始金額
-
-        輸入內容：{text}
-
-        範例輸出格式：
-        {{"original_amount": 5000, "date": "2025-02-13", "category": "儲值", "name": "suica儲值", "amount": 3000, "payment": "信用卡"}}
-        """
-    else:
-        prompt = f"""
-        請將以下消費記錄轉換為JSON格式，包含以下欄位：
-        date(自動填寫今天日期{datetime.now().strftime('%Y-%m-%d')}),
-        category(限：早餐/午餐/晚餐/交通/娛樂/儲值/其他),
-        name(商品名稱),
-        amount(只保留數字),
-        payment(限：現金/信用卡/電子支付/行動支付)
-
-    注意：
-    1. 如果是儲值行為（例如：為 mobile suica 加值），類別請標示為「儲值」
-    2. 如果是使用已儲值的支付方式消費（例如：使用 mobile suica 搭車），類別請標示為「交通」，支付方式標示為「行動支付」
-
-    輸入內容：{text}
-
-    範例輸出格式：
-    {{"date": "2025-02-13", "category": "晚餐", "name": "炒麵", "amount": 1150, "payment": "信用卡"}}
-    """
-
-    try:
-        response = model.generate_content(prompt)
-        return eval(response.text)
-    except Exception as e:
-        st.error(f"解析錯誤: {str(e)}")
-        return None
-
-# 新增修改記錄函式
-def modify_expense(original_amount, new_data):
-    # 找到最近一筆符合金額的記錄
-    mask = st.session_state.df['價格'] == original_amount
-    if not mask.any():
-        st.error(f"找不到金額為 {original_amount} 的記錄")
-        return False
-    
-    # 取得最後一筆符合的記錄索引
-    idx = mask.iloc[::-1].idxmax()
-    
-    # 更新記錄
-    st.session_state.df.loc[idx, '日期'] = new_data['date']
-    st.session_state.df.loc[idx, '類別'] = new_data['category']
-    st.session_state.df.loc[idx, '名稱'] = new_data['name']
-    st.session_state.df.loc[idx, '價格'] = new_data['amount']
-    st.session_state.df.loc[idx, '支付方式'] = new_data['payment']
-    
-    # 儲存更新後的資料
-    st.session_state.df.to_csv('data/expenses.csv', index=False)
-    return True
-
-# 主界面
-st.title("AI智能記帳系統 💵")
-tab1, tab2 = st.tabs(["📝 記帳界面", "📊 分析報表"])
-
+# 主要記帳介面
 with tab1:
     with st.form("input_form"):
         input_text = st.text_input("文字輸入（範例：晚餐吃拉麵用現金支付980日幣）")
         submit_button = st.form_submit_button("💾 儲存記錄")
         
         if submit_button and input_text:
-            # 判斷是否為修改請求
-            is_modify = "修改紀錄" in input_text or "修改記錄" in input_text
-            
-            parsed = parse_expense(input_text, is_modify)
-            if parsed:
-                if is_modify:
-                    if modify_expense(parsed['original_amount'], parsed):
-                        st.success("記錄已更新！")
-                else:
-                    new_row = {
-                        '日期': parsed['date'],
-                        '類別': parsed['category'],
-                        '名稱': parsed['name'],
-                        '價格': int(parsed['amount']),
-                        '支付方式': parsed['payment']
-                    }
-                    st.session_state.df = pd.concat(
-                        [st.session_state.df, pd.DataFrame([new_row])],
-                        ignore_index=True
-                    )
-                    st.session_state.df.to_csv('data/expenses.csv', index=False)
-                    st.success("已儲存！")
-
-    # 確保編輯前資料類型正確
-    df_for_editing = st.session_state.df.copy()
-    if not df_for_editing.empty:
-        df_for_editing['日期'] = pd.to_datetime(df_for_editing['日期'])
-
-    # 使用 data_editor
+            try:
+                prompt = f"""
+                請從以下文字中提取消費資訊，並以JSON格式回傳，包含以下欄位：
+                日期（如果沒提到就用今天）、類別（早餐/午餐/晚餐/交通/娛樂/儲值/其他）、
+                名稱、價格、支付方式（現金/信用卡/電子支付/行動支付）
+                
+                文字：{input_text}
+                """
+                
+                response = model.generate_content(prompt)
+                result = eval(response.text)
+                
+                new_row = pd.DataFrame([result])
+                st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
+                st.session_state.df.to_csv('data/expenses.csv', index=False)
+                st.success("已新增記錄！")
+                
+            except Exception as e:
+                st.error(f"處理錯誤: {str(e)}")
+    
+    # 顯示表格
     edited_df = st.data_editor(
-        df_for_editing,
+        st.session_state.df,
         use_container_width=True,
         num_rows="dynamic",
         column_config={
@@ -184,51 +103,48 @@ with tab1:
         },
         hide_index=True,
     )
-
-    # 檢查表格是否有變更並儲存
+    
     if not edited_df.equals(st.session_state.df):
         st.session_state.df = edited_df.copy()
-        # 儲存時將日期轉換為字串格式
-        st.session_state.df.to_csv('data/expenses.csv', index=False, date_format='%Y-%m-%d')
+        st.session_state.df.to_csv('data/expenses.csv', index=False)
         st.success("表格已更新！")
 
-    # 匯出按鈕
-    if not st.session_state.df.empty:
-        csv = st.session_state.df.to_csv(index=False, date_format='%Y-%m-%d').encode('utf-8')
-        st.download_button(
-            label="📥 下載 CSV",
-            data=csv,
-            file_name='expenses.csv',
-            mime='text/csv',
-        )
-
+# 分析頁面
 with tab2:
-    analysis_type = st.selectbox("分析類型", ['類別', '支付方式'])
-    include_deposit = st.checkbox("包含儲值金額", value=False)
-
     if not st.session_state.df.empty:
-        # 根據選擇決定是否過濾儲值記錄
-        df_analysis = st.session_state.df
+        # 新增篩選選項
+        include_deposit = st.checkbox('包含儲值金額', value=False)
+        
+        # 根據篩選條件準備資料
         if not include_deposit:
-            df_analysis = df_analysis[df_analysis['類別'] != '儲值']
-
-        fig = px.pie(
-            df_analysis,
-            names=analysis_type,
-            values='價格',
-            title=f'{analysis_type}占比分析 {"(不含儲值)" if not include_deposit else ""}',
-            hole=0.3
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            df_analysis = st.session_state.df[st.session_state.df['類別'] != '儲值']
+        else:
+            df_analysis = st.session_state.df.copy()
+            
+        # 計算總支出
+        total_expense = df_analysis['價格'].sum()
+        st.metric("總支出", f"${total_expense:,.0f}")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # 類別分析
+            category_sum = df_analysis.groupby('類別')['價格'].sum()
+            fig1 = px.pie(
+                values=category_sum.values,
+                names=category_sum.index,
+                title='類別佔比'
+            )
+            st.plotly_chart(fig1)
+            
+        with col2:
+            # 支付方式分析
+            payment_sum = df_analysis.groupby('支付方式')['價格'].sum()
+            fig2 = px.pie(
+                values=payment_sum.values,
+                names=payment_sum.index,
+                title='支付方式佔比'
+            )
+            st.plotly_chart(fig2)
     else:
-        st.info("尚未有消費記錄")
-
-# 修改資料儲存函數
-def save_data():
-    try:
-        os.makedirs('data', exist_ok=True)
-        st.session_state.df.to_csv('data/expenses.csv', index=False)
-        return True
-    except Exception as e:
-        st.error(f"資料儲存錯誤: {str(e)}")
-        return False
+        st.info('還沒有任何記錄，請先新增支出！')
