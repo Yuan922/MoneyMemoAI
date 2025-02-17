@@ -226,22 +226,12 @@ with tab1:
 
     # 刪除選中的記錄
     selected_indices = [i for i, selected in enumerate(st.session_state.selected) if selected]
-    if selected_indices:
-        if st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
-            dialog = st.dialog("確認刪除")
-            with dialog:
-                st.write("⚠️ 確定要刪除選中的記錄嗎？")
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("確定", type="primary", key="confirm_delete", use_container_width=True):
-                        st.session_state.df = st.session_state.df.drop(selected_indices).reset_index(drop=True)
-                        st.session_state.df.to_csv('data/expenses.csv', index=False)
-                        st.session_state.selected = [False] * len(st.session_state.df)
-                        st.success("已刪除選中的記錄！")
-                        st.rerun()
-                with col2:
-                    if st.button("取消", type="secondary", key="cancel_delete", use_container_width=True):
-                        st.rerun()
+    if selected_indices and st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
+        st.session_state.df = st.session_state.df.drop(selected_indices).reset_index(drop=True)
+        st.session_state.df.to_csv('data/expenses.csv', index=False)
+        st.session_state.selected = [False] * len(st.session_state.df)
+        st.success("已刪除選中的記錄！")
+        st.rerun()
 
 # 分析頁面
 with tab2:
