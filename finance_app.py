@@ -142,9 +142,6 @@ with tab1:
                     response = model.generate_content(prompt)
                     result = json.loads(response.text)
                     
-                    # 在搜尋前先顯示搜尋條件（方便除錯）
-                    st.write("正在搜尋符合以下條件的記錄：", result["search"])
-                    
                     # 尋找符合條件的記錄
                     mask = pd.Series(True, index=st.session_state.df.index)
                     for key, value in result["search"].items():
