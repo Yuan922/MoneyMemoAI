@@ -5,6 +5,7 @@ from datetime import datetime
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
+import json
 
 # TODO List:
 # 增加修改現有記錄功能
@@ -54,11 +55,18 @@ with tab1:
                 日期（如果沒提到就用今天）、類別（早餐/午餐/晚餐/交通/娛樂/儲值/其他）、
                 名稱、價格、支付方式（現金/信用卡/電子支付/行動支付）
                 
+                請確保回傳的格式完全符合以下範例：
+                {{"日期": "2024-03-19", "類別": "晚餐", "名稱": "拉麵", "價格": 980, "支付方式": "現金"}}
+                
                 文字：{input_text}
                 """
                 
                 response = model.generate_content(prompt)
-                result = eval(response.text)
+                # 顯示 AI 回應以便除錯
+                st.write("AI 回應:", response.text)
+                
+                # 使用更安全的 JSON 解析
+                result = json.loads(response.text)
                 
                 new_row = pd.DataFrame([result])
                 st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
@@ -67,6 +75,7 @@ with tab1:
                 
             except Exception as e:
                 st.error(f"處理錯誤: {str(e)}")
+                st.error("AI 回應內容：" + response.text)
     
     # 顯示表格
     edited_df = st.data_editor(
