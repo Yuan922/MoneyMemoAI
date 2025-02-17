@@ -24,21 +24,18 @@ if 'df' not in st.session_state:
     try:
         os.makedirs('data', exist_ok=True)
         try:
-            # 讀取 CSV 時指定日期欄位的格式
-            st.session_state.df = pd.read_csv('data/expenses.csv', 
-                parse_dates=['日期'])
+            # 讀取 CSV 時明確指定日期格式
+            st.session_state.df = pd.read_csv('data/expenses.csv',
+                dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
         except FileNotFoundError:
             st.session_state.df = pd.DataFrame(columns=[
                 '日期', '類別', '名稱', '價格', '支付方式'
             ])
-            # 確保日期欄位的類型為 datetime
-            st.session_state.df['日期'] = pd.to_datetime(st.session_state.df['日期'])
     except Exception as e:
         st.error(f"資料載入錯誤: {str(e)}")
         st.session_state.df = pd.DataFrame(columns=[
             '日期', '類別', '名稱', '價格', '支付方式'
         ])
-        st.session_state.df['日期'] = pd.to_datetime(st.session_state.df['日期'])
 
 # 設定頁面
 st.set_page_config(page_title="AI智能記帳", page_icon="💰", layout="wide")
@@ -120,8 +117,8 @@ with tab1:
                 "價格",
                 min_value=0,
                 required=True,
-                format="%d",  # 移除千位分隔符
-                align="left"  # 設定靠左對齊
+                format="%d",
+                align="left"
             ),
             "支付方式": st.column_config.SelectboxColumn(
                 "支付方式",
@@ -129,7 +126,7 @@ with tab1:
                 required=True
             )
         },
-        hide_index=True,
+        hide_index=True
     )
     
     if not edited_df.equals(st.session_state.df):
