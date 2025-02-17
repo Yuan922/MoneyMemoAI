@@ -112,8 +112,13 @@ with tab1:
                 try:
                     prompt = f"""
                     請從以下文字中提取修改資訊。這是一個修改請求，需要先找到對應的記錄再進行修改。
+                    
                     請回傳兩個部分的資訊：
-                    1. 搜尋條件：用來找到要修改的記錄（可包含：日期、名稱、類別等資訊）
+                    1. 搜尋條件：用來找到要修改的記錄
+                       - 請盡可能包含多個條件（日期、名稱、金額、類別）來精確定位記錄
+                       - 如果提到金額，一定要加入搜尋條件中
+                       - 如果提到名稱，一定要加入搜尋條件中
+                    
                     2. 修改內容：要更新的欄位和值
                     
                     可修改的欄位包括：
@@ -124,12 +129,14 @@ with tab1:
                     - 支付方式（現金/信用卡/樂天Pay/PayPay）
                     
                     請以以下格式回傳：
-                    {{"search": {{"名稱": "Subway", "日期": "今天"}}, "update": {{"價格": 1050}}}}
+                    例如要修改支付方式：
+                    {{"search": {{"名稱": "Suica", "價格": 5000, "類別": "儲值", "日期": "今天"}}, "update": {{"支付方式": "信用卡"}}}}
                     
                     注意：
-                    1. 搜尋條件要盡可能明確，以避免修改到錯誤的記錄
+                    1. 搜尋條件要盡可能完整，至少包含名稱、金額其中之一
                     2. 如果提到"今天"，請使用今天的日期
                     3. 價格必須是數字
+                    4. 名稱要完全匹配（大小寫需一致）
                     
                     文字：{input_text}
                     """
@@ -141,10 +148,16 @@ with tab1:
                     if "日期" in result["search"] and result["search"]["日期"] == "今天":
                         result["search"]["日期"] = datetime.now().strftime("%Y-%m-%d")
                     
+                    # 在搜尋前先顯示搜尋條件（方便除錯）
+                    st.write("正在搜尋符合以下條件的記錄：", result["search"])
+                    
                     # 尋找符合條件的記錄
                     mask = pd.Series(True, index=st.session_state.df.index)
                     for key, value in result["search"].items():
-                        mask &= st.session_state.df[key].astype(str) == str(value)
+                        if pd.isna(value):  # 處理空值的情況
+                            mask &= pd.isna(st.session_state.df[key])
+                        else:
+                            mask &= st.session_state.df[key].astype(str) == str(value)
                     
                     if mask.any():
                         # 更新符合條件的記錄
@@ -153,10 +166,7 @@ with tab1:
                         
                         # 儲存更新後的資料
                         st.session_state.df.to_csv('data/expenses.csv', index=False)
-                        
-                        # 只顯示一個成功訊息
                         st.success("已更新記錄！")
-                        
                     else:
                         st.error("找不到符合的記錄！請確認搜尋條件是否正確。")
                     
