@@ -115,10 +115,9 @@ with tab1:
                     
                     請回傳兩個部分的資訊：
                     1. 搜尋條件：用來找到要修改的記錄
-                       - 請盡可能包含多個條件（名稱、金額、類別）來精確定位記錄
+                       - 請盡可能完全符合原始記錄的名稱（例如：如果是"suica"就不要寫成"Suica"）
                        - 如果提到金額，一定要加入搜尋條件中
                        - 如果提到名稱，一定要加入搜尋條件中
-                       - 不要加入日期條件，除非使用者明確提到特定日期
                     
                     2. 修改內容：要更新的欄位和值
                     
@@ -131,13 +130,11 @@ with tab1:
                     
                     請以以下格式回傳：
                     例如要修改支付方式：
-                    {{"search": {{"名稱": "Suica", "價格": 5000, "類別": "儲值"}}, "update": {{"支付方式": "信用卡"}}}}
+                    {{"search": {{"名稱": "suica", "價格": 5000}}, "update": {{"支付方式": "信用卡"}}}}
                     
                     注意：
-                    1. 搜尋條件要包含名稱、金額其中之一
-                    2. 不要在搜尋條件中加入日期，除非使用者明確指定
-                    3. 價格必須是數字
-                    4. 名稱要完全匹配（大小寫需一致）
+                    1. 名稱必須完全符合原始記錄（包括大小寫）
+                    2. 價格必須是數字
                     
                     文字：{input_text}
                     """
@@ -154,10 +151,10 @@ with tab1:
                         if pd.isna(value):  # 處理空值的情況
                             mask &= pd.isna(st.session_state.df[key])
                         else:
-                            # 將 DataFrame 中的值轉換為字串，去除空白，並轉為小寫
-                            df_values = st.session_state.df[key].astype(str).str.strip().str.lower()
-                            # 將搜尋值也轉換為字串，去除空白，並轉為小寫
-                            search_value = str(value).strip().lower()
+                            # 將 DataFrame 中的值轉換為字串，並去除可能的空白
+                            df_values = st.session_state.df[key].astype(str).str.strip()
+                            # 將搜尋值也轉換為字串並去除空白
+                            search_value = str(value).strip()
                             mask &= df_values == search_value
                     
                     if mask.any():
