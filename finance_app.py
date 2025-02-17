@@ -105,7 +105,7 @@ with tab1:
                     st.error("AI 回應內容：" + response.text)
     else:
         with st.form("edit_form"):
-            input_text = st.text_input("請輸入要修改的內容（例如：今天下午去komeda的花費是用樂天Pay）")
+            input_text = st.text_input("請輸入要修改的內容（例如：今天subway的價格是1050、今天下午去komeda的花費是用樂天Pay）")
             submit_button = st.form_submit_button("✏️ 修改記錄")
             
             if submit_button and input_text:
@@ -113,11 +113,23 @@ with tab1:
                     prompt = f"""
                     請從以下文字中提取修改資訊。這是一個修改請求，需要先找到對應的記錄再進行修改。
                     請回傳兩個部分的資訊：
-                    1. 搜尋條件：用來找到要修改的記錄
+                    1. 搜尋條件：用來找到要修改的記錄（可包含：日期、名稱、類別等資訊）
                     2. 修改內容：要更新的欄位和值
                     
+                    可修改的欄位包括：
+                    - 日期（YYYY-MM-DD格式）
+                    - 類別（早餐/午餐/晚餐/點心/交通/娛樂/儲值/其他）
+                    - 名稱
+                    - 價格（數字）
+                    - 支付方式（現金/信用卡/樂天Pay/PayPay）
+                    
                     請以以下格式回傳：
-                    {{"search": {{"名稱": "Komeda", "日期": "今天"}}, "update": {{"支付方式": "樂天Pay"}}}}
+                    {{"search": {{"名稱": "Subway", "日期": "今天"}}, "update": {{"價格": 1050}}}}
+                    
+                    注意：
+                    1. 搜尋條件要盡可能明確，以避免修改到錯誤的記錄
+                    2. 如果提到"今天"，請使用今天的日期
+                    3. 價格必須是數字
                     
                     文字：{input_text}
                     """
@@ -132,7 +144,7 @@ with tab1:
                     # 尋找符合條件的記錄
                     mask = pd.Series(True, index=st.session_state.df.index)
                     for key, value in result["search"].items():
-                        mask &= st.session_state.df[key] == value
+                        mask &= st.session_state.df[key].astype(str) == str(value)
                     
                     if mask.any():
                         # 更新符合條件的記錄
@@ -146,12 +158,13 @@ with tab1:
                         st.success(f"已更新記錄！")
                         responses = [
                             f"好的！已經幫你修改完成了～",
-                            f"更新成功！已經修改好了！",
-                            f"記錄已更新，資料修改完成！"
+                            f"更新成功！已經改好了！",
+                            f"記錄已更新，資料修改完成！",
+                            f"沒問題！已經幫你改好了～"
                         ]
                         st.write(random.choice(responses))
                     else:
-                        st.error("找不到符合的記錄！")
+                        st.error("找不到符合的記錄！請確認搜尋條件是否正確。")
                     
                 except Exception as e:
                     st.error(f"處理錯誤: {str(e)}")
