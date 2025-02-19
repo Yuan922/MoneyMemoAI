@@ -281,6 +281,14 @@ with tab1:
 
     # 新的匯出介面
     with st.expander("📥 匯出資料"):
+        # 取得資料的起訖日期
+        if not st.session_state.df.empty:
+            start_date = pd.to_datetime(st.session_state.df['日期']).min().strftime('%Y%m%d')
+            end_date = pd.to_datetime(st.session_state.df['日期']).max().strftime('%Y%m%d')
+            date_range = f"{start_date}-{end_date}"
+        else:
+            date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
+        
         export_format = st.radio(
             "選擇匯出格式",
             ["Excel", "CSV"],
@@ -297,7 +305,7 @@ with tab1:
             st.download_button(
                 label="下載 Excel 檔案",
                 data=output.getvalue(),
-                file_name="支出記錄.xlsx",
+                file_name=f"支出記錄_{date_range}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
@@ -306,7 +314,7 @@ with tab1:
             st.download_button(
                 label="下載 CSV 檔案",
                 data=csv,
-                file_name="支出記錄.csv",
+                file_name=f"支出記錄_{date_range}.csv",
                 mime="text/csv",
                 use_container_width=True
             )
