@@ -30,14 +30,19 @@ st.set_page_config(
 # 從環境變數讀取使用者資訊
 USERS = {
     "admin": {
-        "password": os.getenv("ADMIN_PASSWORD", "e94021107"),  # 從環境變數讀取，如果沒有則使用預設值
+        "password": os.getenv("ADMIN_PASSWORD"),  # 從環境變數讀取管理員密碼
         "name": "admin"
     },
     "yuan": {
-        "password": os.getenv("USER_PASSWORD", "e94021107"),  # 從環境變數讀取，如果沒有則使用預設值
+        "password": os.getenv("USER_PASSWORD"),  # 從環境變數讀取使用者密碼
         "name": "yuan"
     }
 }
+
+# 如果沒有設定環境變數，顯示錯誤訊息
+if not os.getenv("ADMIN_PASSWORD") or not os.getenv("USER_PASSWORD"):
+    st.error("請設定必要的環境變數：ADMIN_PASSWORD 和 USER_PASSWORD")
+    st.stop()
 
 # 初始化 session state
 if 'authenticated' not in st.session_state:
