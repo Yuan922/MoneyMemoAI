@@ -59,30 +59,9 @@ with tab1:
     )
 
     if operation_mode == "新增記錄":
-        # 快速輸入按鈕移到表單外部
-        st.subheader("快速輸入")
-        quick_input_col1, quick_input_col2, quick_input_col3 = st.columns(3)
-        
-        # 使用 session_state 來儲存輸入文字
-        if 'input_text' not in st.session_state:
-            st.session_state.input_text = ""
-        
-        with quick_input_col1:
-            if st.button("🍜 午餐拉麵", key="ramen"):
-                st.session_state.input_text = "午餐吃拉麵用現金支付980日幣"
-        
-        with quick_input_col2:
-            if st.button("🚇 地鐵", key="subway"):
-                st.session_state.input_text = "搭地鐵用西瓜卡支付280日幣"
-        
-        with quick_input_col3:
-            if st.button("☕ 咖啡", key="coffee"):
-                st.session_state.input_text = "星巴克咖啡用樂天Pay支付500日幣"
-
         # 表單部分
         with st.form("input_form"):
-            input_text = st.text_input("文字輸入（範例：晚餐吃拉麵用現金支付980日幣）", 
-                                     value=st.session_state.input_text)
+            input_text = st.text_input("文字輸入（範例：晚餐吃拉麵用現金支付980日幣）")
             submit_button = st.form_submit_button("💾 儲存記錄")
             
             if submit_button and input_text:
@@ -270,32 +249,36 @@ with tab1:
         st.success("已刪除選中的記錄！")
         st.rerun()
 
-    # 在表格下方新增匯出按鈕
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("📥 匯出 Excel"):
+    # 新的匯出介面
+    with st.expander("📥 匯出資料"):
+        export_format = st.radio(
+            "選擇匯出格式",
+            ["Excel", "CSV"],
+            horizontal=True,
+            key="export_format"
+        )
+        
+        if export_format == "Excel":
             # 建立 BytesIO 物件
             output = BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 st.session_state.df.to_excel(writer, sheet_name='支出記錄', index=False)
             
-            # 設定下載按鈕
             st.download_button(
                 label="下載 Excel 檔案",
                 data=output.getvalue(),
                 file_name="支出記錄.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
             )
-    
-    with col2:
-        if st.button("📥 匯出 CSV"):
+        else:
             csv = st.session_state.df.to_csv(index=False)
             st.download_button(
                 label="下載 CSV 檔案",
                 data=csv,
                 file_name="支出記錄.csv",
-                mime="text/csv"
+                mime="text/csv",
+                use_container_width=True
             )
 
 # 分析頁面
