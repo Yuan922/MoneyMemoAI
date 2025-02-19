@@ -38,14 +38,23 @@ def get_exchange_rates(base_currency="JPY"):
         'TWD': 0.23,  # 預設匯率，1日圓約0.23新台幣
         'USD': 0.0067  # 預設匯率，1日圓約0.0067美元
     }
-    for currency in CURRENCIES.keys():
-        if currency != base_currency:
-            try:
+    
+    try:
+        # 嘗試一次性獲取所有匯率
+        has_error = False
+        for currency in CURRENCIES.keys():
+            if currency != base_currency:
                 new_rate = c.get_rate(base_currency, currency)
                 if new_rate is not None:
                     rates[currency] = new_rate
-            except:
-                st.warning(f"無法取得即時匯率，使用預設匯率")
+                else:
+                    has_error = True
+        
+        if has_error:
+            st.warning("無法取得即時匯率，部分幣別使用預設匯率")
+    except:
+        st.warning("無法取得即時匯率，使用預設匯率")
+    
     return rates
 
 # 轉換金額
