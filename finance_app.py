@@ -47,19 +47,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 初始化主題設定
-if 'theme' not in st.session_state:
-    st.session_state.theme = 'light'
-
 # 自定義 CSS 樣式
 st.markdown("""
 <style>
-    /* 深色模式樣式 */
-    .dark-theme .total-amount {
-        background-color: #1B1F27 !important;
-        color: #FAFAFA !important;
-    }
-    
     /* 表格和操作區域的佈局 */
     .main-content {
         display: flex;
@@ -95,32 +85,10 @@ st.markdown("""
         border-radius: 8px;
         margin: 10px 0;
         font-size: 1.1em;
+        background-color: #f0f2f6;
     }
 </style>
 """, unsafe_allow_html=True)
-
-# 主題切換開關
-col_left, col_right = st.columns([3, 1])
-with col_right:
-    theme_toggle = st.toggle('🌙 深色模式', value=(st.session_state.theme == 'dark'))
-    if theme_toggle != (st.session_state.theme == 'dark'):
-        st.session_state.theme = 'dark' if theme_toggle else 'light'
-        # 使用 JavaScript 更新主題
-        st.markdown("""
-        <script>
-            // 等待父窗口加載完成
-            window.parent.addEventListener('DOMContentLoaded', (event) => {
-                // 獲取主題切換按鈕
-                const themeButton = window.parent.document.querySelector('[data-testid="StyledFullScreenButton"]');
-                if (themeButton) {
-                    // 觸發點擊事件來切換主題
-                    themeButton.click();
-                }
-            });
-        </script>
-        """, unsafe_allow_html=True)
-        # 強制重新加載頁面
-        st.rerun()
 
 # 建立分頁
 tab1, tab2 = st.tabs(["記帳", "分析"])
