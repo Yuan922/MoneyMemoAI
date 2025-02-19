@@ -158,8 +158,8 @@ with tab1:
                     範例：
                     輸入："奇異果150元和章魚生魚片350元是昨天買的"
                     輸出：[
-                        {{"search": {{"名稱": "奇異果", "價格": 150}}, "update": {{"日期": "{yesterday.strftime("%Y-%m-%d")}"}}},
-                        {{"search": {{"名稱": "章魚生魚片", "價格": 350}}, "update": {{"日期": "{yesterday.strftime("%Y-%m-%d")}"}}}
+                        {{"search": {{"名稱": "奇異果", "價格": 150}}, "update": {{"日期": "{yesterday.strftime('%Y-%m-%d')}"}}}},
+                        {{"search": {{"名稱": "章魚生魚片", "價格": 350}}, "update": {{"日期": "{yesterday.strftime('%Y-%m-%d')}"}}}}
                     ]
 
                     請處理以下修改請求：
