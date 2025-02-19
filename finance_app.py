@@ -59,24 +59,30 @@ with tab1:
     )
 
     if operation_mode == "新增記錄":
+        # 快速輸入按鈕移到表單外部
+        st.subheader("快速輸入")
+        quick_input_col1, quick_input_col2, quick_input_col3 = st.columns(3)
+        
+        # 使用 session_state 來儲存輸入文字
+        if 'input_text' not in st.session_state:
+            st.session_state.input_text = ""
+        
+        with quick_input_col1:
+            if st.button("🍜 午餐拉麵", key="ramen"):
+                st.session_state.input_text = "午餐吃拉麵用現金支付980日幣"
+        
+        with quick_input_col2:
+            if st.button("🚇 地鐵", key="subway"):
+                st.session_state.input_text = "搭地鐵用西瓜卡支付280日幣"
+        
+        with quick_input_col3:
+            if st.button("☕ 咖啡", key="coffee"):
+                st.session_state.input_text = "星巴克咖啡用樂天Pay支付500日幣"
+
+        # 表單部分
         with st.form("input_form"):
-            # 在文字輸入框上方新增快速輸入按鈕
-            st.subheader("快速輸入")
-            quick_input_col1, quick_input_col2, quick_input_col3 = st.columns(3)
-            
-            with quick_input_col1:
-                if st.button("🍜 午餐拉麵"):
-                    input_text = "午餐吃拉麵用現金支付980日幣"
-            
-            with quick_input_col2:
-                if st.button("🚇 地鐵"):
-                    input_text = "搭地鐵用西瓜卡支付280日幣"
-            
-            with quick_input_col3:
-                if st.button("☕ 咖啡"):
-                    input_text = "星巴克咖啡用樂天Pay支付500日幣"
-            
-            input_text = st.text_input("文字輸入（範例：晚餐吃拉麵用現金支付980日幣）")
+            input_text = st.text_input("文字輸入（範例：晚餐吃拉麵用現金支付980日幣）", 
+                                     value=st.session_state.input_text)
             submit_button = st.form_submit_button("💾 儲存記錄")
             
             if submit_button and input_text:
