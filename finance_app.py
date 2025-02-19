@@ -55,12 +55,9 @@ if 'theme' not in st.session_state:
 st.markdown("""
 <style>
     /* 深色模式樣式 */
-    [data-theme="dark"] {
-        background-color: #0E1117;
-    }
-    [data-theme="dark"] .total-amount {
-        background-color: #1B1F27;
-        color: #FAFAFA;
+    .dark-theme .total-amount {
+        background-color: #1B1F27 !important;
+        color: #FAFAFA !important;
     }
     
     /* 表格和操作區域的佈局 */
@@ -108,15 +105,22 @@ with col_right:
     theme_toggle = st.toggle('🌙 深色模式', value=(st.session_state.theme == 'dark'))
     if theme_toggle != (st.session_state.theme == 'dark'):
         st.session_state.theme = 'dark' if theme_toggle else 'light'
-        # 使用 JavaScript 動態切換主題
-        st.markdown(f"""
+        # 使用 JavaScript 更新主題
+        st.markdown("""
         <script>
-            const doc = window.parent.document;
-            doc.documentElement.setAttribute('data-theme', '{st.session_state.theme}');
-            // 強制重新載入頁面以應用新主題
-            window.parent.location.reload();
+            // 等待父窗口加載完成
+            window.parent.addEventListener('DOMContentLoaded', (event) => {
+                // 獲取主題切換按鈕
+                const themeButton = window.parent.document.querySelector('[data-testid="StyledFullScreenButton"]');
+                if (themeButton) {
+                    // 觸發點擊事件來切換主題
+                    themeButton.click();
+                }
+            });
         </script>
         """, unsafe_allow_html=True)
+        # 強制重新加載頁面
+        st.rerun()
 
 # 建立分頁
 tab1, tab2 = st.tabs(["記帳", "分析"])
