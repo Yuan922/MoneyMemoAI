@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 import json
 import random
+from io import BytesIO
 
 # TODO List:
 # 增加修改現有記錄功能
@@ -59,6 +60,22 @@ with tab1:
 
     if operation_mode == "新增記錄":
         with st.form("input_form"):
+            # 在文字輸入框上方新增快速輸入按鈕
+            st.subheader("快速輸入")
+            quick_input_col1, quick_input_col2, quick_input_col3 = st.columns(3)
+            
+            with quick_input_col1:
+                if st.button("🍜 午餐拉麵"):
+                    input_text = "午餐吃拉麵用現金支付980日幣"
+            
+            with quick_input_col2:
+                if st.button("🚇 地鐵"):
+                    input_text = "搭地鐵用西瓜卡支付280日幣"
+            
+            with quick_input_col3:
+                if st.button("☕ 咖啡"):
+                    input_text = "星巴克咖啡用樂天Pay支付500日幣"
+            
             input_text = st.text_input("文字輸入（範例：晚餐吃拉麵用現金支付980日幣）")
             submit_button = st.form_submit_button("💾 儲存記錄")
             
@@ -247,6 +264,34 @@ with tab1:
         st.success("已刪除選中的記錄！")
         st.rerun()
 
+    # 在表格下方新增匯出按鈕
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("📥 匯出 Excel"):
+            # 建立 BytesIO 物件
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                st.session_state.df.to_excel(writer, sheet_name='支出記錄', index=False)
+            
+            # 設定下載按鈕
+            st.download_button(
+                label="下載 Excel 檔案",
+                data=output.getvalue(),
+                file_name="支出記錄.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+    
+    with col2:
+        if st.button("📥 匯出 CSV"):
+            csv = st.session_state.df.to_csv(index=False)
+            st.download_button(
+                label="下載 CSV 檔案",
+                data=csv,
+                file_name="支出記錄.csv",
+                mime="text/csv"
+            )
+
 # 分析頁面
 with tab2:
     if not st.session_state.df.empty:
@@ -284,5 +329,28 @@ with tab2:
                 title='支付方式佔比'
             )
             st.plotly_chart(fig2)
+
+        # 新增月度趨勢分析
+        st.subheader("月度支出趨勢")
+        
+        # 將日期轉換為 datetime 格式
+        df_analysis['日期'] = pd.to_datetime(df_analysis['日期'])
+        
+        # 計算每月支出
+        monthly_expenses = df_analysis.groupby(df_analysis['日期'].dt.strftime('%Y-%m'))[['價格']].sum()
+        
+        # 繪製月度趨勢圖
+        fig3 = px.line(
+            monthly_expenses,
+            x=monthly_expenses.index,
+            y='價格',
+            title='月度支出趨勢',
+            labels={'價格': '支出金額', '日期': '月份'}
+        )
+        st.plotly_chart(fig3, use_container_width=True)
+
+        # 顯示每日平均支出
+        daily_avg = df_analysis.groupby('日期')['價格'].sum().mean()
+        st.metric("每日平均支出", f"${daily_avg:,.0f}")
     else:
         st.info('還沒有任何記錄，請先新增支出！')

@@ -3,3 +3,5 @@ pandas
 plotly
 google-generativeai
 python-dotenv
+xlsxwriter==3.1.2
+openpyxl==3.1.2
