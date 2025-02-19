@@ -44,43 +44,53 @@ st.set_page_config(
     page_title="AI智能記帳",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="collapsed"  # 在手機版預設收起側邊欄
+    initial_sidebar_state="collapsed"
 )
+
+# 初始化主題設定
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'light'
 
 # 自定義 CSS 樣式
 st.markdown("""
 <style>
+    /* 主題切換開關樣式 */
+    .theme-toggle {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1000;
+    }
+    
     /* 響應式設計 */
     @media (max-width: 768px) {
-        /* 調整表格在手機上的顯示 */
-        .stDataFrame {
-            font-size: 12px;
+        .theme-toggle {
+            position: relative;
+            top: 0;
+            right: 0;
+            margin-bottom: 1rem;
         }
-        /* 調整按鈕大小 */
-        .stButton button {
-            width: 100%;
-            margin: 5px 0;
-            padding: 0.5rem;
+        
+        /* 在手機版將右側欄移到下方 */
+        [data-testid="column-right"] {
+            width: 100% !important;
+            margin-top: 1rem;
         }
-        /* 調整圖表大小 */
-        .js-plotly-plot {
-            max-height: 300px;
-        }
-        /* 調整輸入框大小 */
-        .stTextInput input {
-            font-size: 14px;
-            padding: 0.5rem;
+        [data-testid="column-left"] {
+            width: 100% !important;
         }
     }
-
-    /* 深色模式適配 */
-    @media (prefers-color-scheme: dark) {
-        .total-amount {
-            background-color: #1B1F27 !important;
-            color: #FAFAFA !important;
-        }
+    
+    /* 深色模式樣式 */
+    .dark-mode {
+        background-color: #0E1117;
+        color: #FAFAFA;
     }
-
+    .dark-mode .total-amount {
+        background-color: #1B1F27;
+        color: #FAFAFA;
+    }
+    
     /* 通用樣式優化 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
@@ -108,6 +118,20 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# 主題切換開關
+col_left, col_right = st.columns([3, 1])
+with col_right:
+    theme_toggle = st.toggle('🌙 深色模式', value=(st.session_state.theme == 'dark'))
+    if theme_toggle != (st.session_state.theme == 'dark'):
+        st.session_state.theme = 'dark' if theme_toggle else 'light'
+        # 使用 JavaScript 動態切換主題
+        st.markdown(f"""
+        <script>
+            const doc = window.parent.document;
+            doc.documentElement.setAttribute('data-theme', '{st.session_state.theme}');
+        </script>
+        """, unsafe_allow_html=True)
 
 # 建立分頁
 tab1, tab2 = st.tabs(["記帳", "分析"])
@@ -278,10 +302,11 @@ with tab1:
                     st.error(f"處理錯誤: {str(e)}")
                     st.error("AI 回應內容：" + response.text)
 
-    # 顯示表格
-    col1, col2 = st.columns([2, 1])  # 在桌面版使用 2:1 的比例
+    # 修改表格和操作區域的佈局
+    container = st.container()
+    table_col, action_col = container.columns([2, 1])
     
-    with col1:
+    with table_col:
         edited_df = st.data_editor(
             st.session_state.df,
             use_container_width=True,
@@ -317,9 +342,17 @@ with tab1:
             hide_index=True,
             column_order=["日期", "類別", "名稱", "支付方式", "價格"]
         )
+        
+        # 顯示總計金額（在表格下方）
+        total_amount = edited_df['價格'].sum()
+        st.markdown(f"""
+        <div class="total-amount">
+            <strong>總計金額：</strong> ¥{total_amount:,.0f}
+        </div>
+        """, unsafe_allow_html=True)
     
-    with col2:
-        # 操作區域
+    with action_col:
+        # 操作區域（匯出和刪除功能）
         with st.expander("📥 匯出資料", expanded=True):
             # 取得資料的起訖日期
             if not st.session_state.df.empty:
