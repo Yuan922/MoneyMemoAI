@@ -249,6 +249,14 @@ with tab1:
         column_order=["日期", "類別", "名稱", "支付方式", "價格"]
     )
     
+    # 顯示總計金額
+    total_amount = edited_df['價格'].sum()
+    st.markdown(f"""
+    <div style="text-align: right; padding: 10px; background-color: #f0f2f6; border-radius: 5px; margin-top: -16px;">
+        <strong>總計金額：</strong> ¥{total_amount:,.0f}
+    </div>
+    """, unsafe_allow_html=True)
+    
     if not edited_df.equals(st.session_state.df):
         st.session_state.df = edited_df.copy()
         st.session_state.df.to_csv('data/expenses.csv', index=False)
