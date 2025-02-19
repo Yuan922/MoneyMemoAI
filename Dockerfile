@@ -13,20 +13,16 @@ ENV PYTHONUNBUFFERED=1
 # 建立工作目錄
 WORKDIR /app
 
-# 複製專案檔案
-COPY finance_app.py /app/
+COPY requirements.txt /app/
 COPY .streamlit /app/.streamlit
 COPY .env /app/.env
 
 # 安裝 Python 依賴
-RUN pip install --no-cache-dir \
-    streamlit \
-    plotly \
-    speechrecognition \
-    google-generativeai \
-    pandas \
-    pyaudio
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 建立資料目錄
+RUN mkdir -p /app/data
 
 # 啟動 Streamlit 應用程式
 EXPOSE 8501
-CMD streamlit run finance_app.py --server.address=0.0.0.0 --server.port=8501
+CMD streamlit run main.py --server.address=0.0.0.0 --server.port=8501
