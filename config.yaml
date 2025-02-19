@@ -1,19 +1,15 @@
 credentials:
   usernames:
     admin:  # 您的帳號名稱
-      email: admin@example.com  # 您的電子郵件
-      name: Admin  # 您的顯示名稱
-      password: $2b$12$qK.3hcq9MqoqwQvG2xs3A.eRz3AVhWMxEGm0yWYdV6D5DmBIEF3Hy  # 密碼：admin123
+      email: cksxxb123@gmail.com  # 您的電子郵件
+      name: admin  # 您的顯示名稱
+      password: e94021107  # 密碼：admin123
     user1:
-      email: user1@example.com
-      name: User One
-      password: $2b$12$example_hashed_password1  # 使用 bcrypt 加密的密碼
-    user2:
-      email: user2@example.com
-      name: User Two
-      password: $2b$12$example_hashed_password2
+      email: cksxxb123@gmail.com
+      name: yuan
+      password: e94021107
 cookie:
-  expiry_days: 30
+  expiry_days: 60
   key: 'your_secret_key'  # 可以是任何隨機字串
   name: streamlit_auth
 preauthorized:
