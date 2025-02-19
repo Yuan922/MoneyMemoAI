@@ -9,7 +9,6 @@ import json
 import random
 from io import BytesIO
 import requests
-import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
 
@@ -28,29 +27,46 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 載入使用者認證設定
-with open('config.yaml') as file:
-    config = yaml.load(file, Loader=SafeLoader)
+# 簡單的帳號密碼驗證
+USERS = {
+    "admin": {"password": "e94021107", "name": "admin"},
+    "yuan": {"password": "e94021107", "name": "yuan"}
+}
 
-# 初始化認證器
-authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days'],
-    config['preauthorized']
-)
+# 初始化 session state
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'username' not in st.session_state:
+    st.session_state.username = None
 
-# 顯示登入介面
-name, authentication_status, username = authenticator.login('登入', 'main')
-
-if authentication_status:
-    # 使用者已登入
-    authenticator.logout('登出', 'sidebar')
-    st.write(f'歡迎回來，{name}！')
+# 登入介面
+if not st.session_state.authenticated:
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.title("登入")
+        username = st.text_input("帳號")
+        password = st.text_input("密碼", type="password")
+        
+        if st.button("登入"):
+            if username in USERS and USERS[username]["password"] == password:
+                st.session_state.authenticated = True
+                st.session_state.username = username
+                st.rerun()
+            else:
+                st.error("帳號或密碼錯誤")
+else:
+    # 登出按鈕
+    with st.sidebar:
+        if st.button("登出"):
+            st.session_state.authenticated = False
+            st.session_state.username = None
+            st.rerun()
+    
+    # 顯示歡迎訊息
+    st.write(f"歡迎回來，{USERS[st.session_state.username]['name']}！")
     
     # 修改資料儲存路徑，加入用戶名稱
-    USER_DATA_PATH = f'data/expenses_{username}.csv'
+    USER_DATA_PATH = f'data/expenses_{st.session_state.username}.csv'
     
     # 初始化 Gemini
     load_dotenv()
@@ -514,8 +530,3 @@ if authentication_status:
                     )
         else:
             st.info('還沒有任何記錄，請先新增支出！')
-
-elif authentication_status == False:
-    st.error('帳號或密碼錯誤')
-else:
-    st.warning('請輸入帳號密碼')
