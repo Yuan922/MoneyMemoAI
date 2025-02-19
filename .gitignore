@@ -16,4 +16,7 @@ ENV/
 
 # IDE 設定
 .vscode/
-.idea/ 
+.idea/
+
+# Ignore sensitive files
+.streamlit/secrets.toml 

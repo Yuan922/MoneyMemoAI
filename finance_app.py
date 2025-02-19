@@ -27,10 +27,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 簡單的帳號密碼驗證
+# 從環境變數讀取使用者資訊
 USERS = {
-    "admin": {"password": "e94021107", "name": "admin"},
-    "yuan": {"password": "e94021107", "name": "yuan"}
+    "admin": {
+        "password": st.secrets["ADMIN_PASSWORD"],
+        "name": "admin"
+    },
+    "yuan": {
+        "password": st.secrets["USER_PASSWORD"],
+        "name": "yuan"
+    }
 }
 
 # 初始化 session state
