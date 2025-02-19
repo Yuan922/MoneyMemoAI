@@ -40,8 +40,74 @@ if 'df' not in st.session_state:
         ])
 
 # 設定頁面
-st.set_page_config(page_title="AI智能記帳", page_icon="💰", layout="wide")
-st.title("AI智能記帳 💰")
+st.set_page_config(
+    page_title="AI智能記帳",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="collapsed"  # 在手機版預設收起側邊欄
+)
+
+# 自定義 CSS 樣式
+st.markdown("""
+<style>
+    /* 響應式設計 */
+    @media (max-width: 768px) {
+        /* 調整表格在手機上的顯示 */
+        .stDataFrame {
+            font-size: 12px;
+        }
+        /* 調整按鈕大小 */
+        .stButton button {
+            width: 100%;
+            margin: 5px 0;
+            padding: 0.5rem;
+        }
+        /* 調整圖表大小 */
+        .js-plotly-plot {
+            max-height: 300px;
+        }
+        /* 調整輸入框大小 */
+        .stTextInput input {
+            font-size: 14px;
+            padding: 0.5rem;
+        }
+    }
+
+    /* 深色模式適配 */
+    @media (prefers-color-scheme: dark) {
+        .total-amount {
+            background-color: #1B1F27 !important;
+            color: #FAFAFA !important;
+        }
+    }
+
+    /* 通用樣式優化 */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        padding: 8px 16px;
+        border-radius: 4px;
+    }
+    .stTabs [data-baseweb="tab-list"] button {
+        font-size: 16px;
+    }
+
+    /* 表格樣式優化 */
+    .stDataFrame td, .stDataFrame th {
+        padding: 8px;
+    }
+    
+    /* 總計金額樣式 */
+    .total-amount {
+        text-align: right;
+        padding: 12px;
+        border-radius: 8px;
+        margin: 10px 0;
+        font-size: 1.1em;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # 建立分頁
 tab1, tab2 = st.tabs(["記帳", "分析"])
@@ -213,111 +279,103 @@ with tab1:
                     st.error("AI 回應內容：" + response.text)
 
     # 顯示表格
-    edited_df = st.data_editor(
-        st.session_state.df,
-        use_container_width=True,
-        num_rows="dynamic",
-        column_config={
-            "日期": st.column_config.TextColumn(
-                "日期",
-                help="請使用 YYYY-MM-DD 格式",
-                required=True,
-                validate="^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
-            ),
-            "類別": st.column_config.SelectboxColumn(
-                "類別",
-                options=["早餐", "午餐", "晚餐", "點心", "交通", "娛樂", "儲值", "其他"],
-                required=True
-            ),
-            "名稱": st.column_config.TextColumn(
-                "名稱",
-                required=True
-            ),
-            "價格": st.column_config.NumberColumn(
-                "價格",
-                min_value=0,
-                required=True,
-                format="%.0f"
-            ),
-            "支付方式": st.column_config.SelectboxColumn(
-                "支付方式",
-                options=PAYMENT_METHODS,
-                required=True
-            )
-        },
-        hide_index=True,
-        column_order=["日期", "類別", "名稱", "支付方式", "價格"]
-    )
+    col1, col2 = st.columns([2, 1])  # 在桌面版使用 2:1 的比例
     
-    # 顯示總計金額
-    total_amount = edited_df['價格'].sum()
-    st.markdown(f"""
-    <div style="text-align: right; padding: 10px; background-color: #f0f2f6; border-radius: 5px; margin-top: -16px;">
-        <strong>總計金額：</strong> ¥{total_amount:,.0f}
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if not edited_df.equals(st.session_state.df):
-        st.session_state.df = edited_df.copy()
-        st.session_state.df.to_csv('data/expenses.csv', index=False)
-        st.success("表格已更新！")
-
-    # 初始化 selected 狀態
-    if 'selected' not in st.session_state:
-        st.session_state.selected = [False] * len(st.session_state.df)
-
-    # 確保 selected 列表長度與 DataFrame 相同
-    if len(st.session_state.selected) != len(st.session_state.df):
-        st.session_state.selected = [False] * len(st.session_state.df)
-
-    # 刪除選中的記錄
-    selected_indices = [i for i, selected in enumerate(st.session_state.selected) if selected]
-    if selected_indices and st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
-        st.session_state.df = st.session_state.df.drop(selected_indices).reset_index(drop=True)
-        st.session_state.df.to_csv('data/expenses.csv', index=False)
-        st.session_state.selected = [False] * len(st.session_state.df)
-        st.success("已刪除選中的記錄！")
-        st.rerun()
-
-    # 新的匯出介面
-    with st.expander("📥 匯出資料"):
-        # 取得資料的起訖日期
-        if not st.session_state.df.empty:
-            start_date = pd.to_datetime(st.session_state.df['日期']).min().strftime('%Y%m%d')
-            end_date = pd.to_datetime(st.session_state.df['日期']).max().strftime('%Y%m%d')
-            date_range = f"{start_date}-{end_date}"
-        else:
-            date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
-        
-        export_format = st.radio(
-            "選擇匯出格式",
-            ["Excel", "CSV"],
-            horizontal=True,
-            key="export_format"
+    with col1:
+        edited_df = st.data_editor(
+            st.session_state.df,
+            use_container_width=True,
+            num_rows="dynamic",
+            column_config={
+                "日期": st.column_config.TextColumn(
+                    "日期",
+                    help="請使用 YYYY-MM-DD 格式",
+                    required=True,
+                    validate="^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                ),
+                "類別": st.column_config.SelectboxColumn(
+                    "類別",
+                    options=["早餐", "午餐", "晚餐", "點心", "交通", "娛樂", "儲值", "其他"],
+                    required=True
+                ),
+                "名稱": st.column_config.TextColumn(
+                    "名稱",
+                    required=True
+                ),
+                "價格": st.column_config.NumberColumn(
+                    "價格",
+                    min_value=0,
+                    required=True,
+                    format="%.0f"
+                ),
+                "支付方式": st.column_config.SelectboxColumn(
+                    "支付方式",
+                    options=PAYMENT_METHODS,
+                    required=True
+                )
+            },
+            hide_index=True,
+            column_order=["日期", "類別", "名稱", "支付方式", "價格"]
         )
-        
-        if export_format == "Excel":
-            # 建立 BytesIO 物件
-            output = BytesIO()
-            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                st.session_state.df.to_excel(writer, sheet_name='支出記錄', index=False)
+    
+    with col2:
+        # 操作區域
+        with st.expander("📥 匯出資料", expanded=True):
+            # 取得資料的起訖日期
+            if not st.session_state.df.empty:
+                start_date = pd.to_datetime(st.session_state.df['日期']).min().strftime('%Y%m%d')
+                end_date = pd.to_datetime(st.session_state.df['日期']).max().strftime('%Y%m%d')
+                date_range = f"{start_date}-{end_date}"
+            else:
+                date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
             
-            st.download_button(
-                label="下載 Excel 檔案",
-                data=output.getvalue(),
-                file_name=f"支出記錄_{date_range}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
+            export_format = st.radio(
+                "選擇匯出格式",
+                ["Excel", "CSV"],
+                horizontal=True,
+                key="export_format"
             )
-        else:
-            csv = st.session_state.df.to_csv(index=False)
-            st.download_button(
-                label="下載 CSV 檔案",
-                data=csv,
-                file_name=f"支出記錄_{date_range}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+            
+            if export_format == "Excel":
+                # 建立 BytesIO 物件
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    st.session_state.df.to_excel(writer, sheet_name='支出記錄', index=False)
+                
+                st.download_button(
+                    label="下載 Excel 檔案",
+                    data=output.getvalue(),
+                    file_name=f"支出記錄_{date_range}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            else:
+                csv = st.session_state.df.to_csv(index=False)
+                st.download_button(
+                    label="下載 CSV 檔案",
+                    data=csv,
+                    file_name=f"支出記錄_{date_range}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+
+        with st.expander("🗑️ 刪除記錄", expanded=True):
+            # 初始化 selected 狀態
+            if 'selected' not in st.session_state:
+                st.session_state.selected = [False] * len(st.session_state.df)
+
+            # 確保 selected 列表長度與 DataFrame 相同
+            if len(st.session_state.selected) != len(st.session_state.df):
+                st.session_state.selected = [False] * len(st.session_state.df)
+
+            # 刪除選中的記錄
+            selected_indices = [i for i, selected in enumerate(st.session_state.selected) if selected]
+            if selected_indices and st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
+                st.session_state.df = st.session_state.df.drop(selected_indices).reset_index(drop=True)
+                st.session_state.df.to_csv('data/expenses.csv', index=False)
+                st.session_state.selected = [False] * len(st.session_state.df)
+                st.success("已刪除選中的記錄！")
+                st.rerun()
 
 # 分析頁面
 with tab2:
@@ -333,9 +391,9 @@ with tab2:
             
         # 計算總支出
         total_expense = df_analysis['價格'].sum()
-        st.metric("總支出", f"${total_expense:,.0f}")
+        st.metric("總支出", f"¥{total_expense:,.0f}")
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns([1, 1, 1])
         
         with col1:
             # 類別分析
@@ -345,7 +403,7 @@ with tab2:
                 names=category_sum.index,
                 title='類別佔比'
             )
-            st.plotly_chart(fig1)
+            st.plotly_chart(fig1, use_container_width=True)
             
         with col2:
             # 支付方式分析
@@ -355,7 +413,7 @@ with tab2:
                 names=payment_sum.index,
                 title='支付方式佔比'
             )
-            st.plotly_chart(fig2)
+            st.plotly_chart(fig2, use_container_width=True)
 
         # 新增月度趨勢分析
         st.subheader("月度支出趨勢")
@@ -378,6 +436,6 @@ with tab2:
 
         # 顯示每日平均支出
         daily_avg = df_analysis.groupby('日期')['價格'].sum().mean()
-        st.metric("每日平均支出", f"${daily_avg:,.0f}")
+        st.metric("每日平均支出", f"¥{daily_avg:,.0f}")
     else:
         st.info('還沒有任何記錄，請先新增支出！')
