@@ -342,6 +342,85 @@ else:
                         st.error(f"處理錯誤: {str(e)}")
                         st.error("AI 回應內容：" + response.text)
 
+        # 新增一個匯入區塊
+        with st.expander("📤 匯入資料", expanded=False):
+            uploaded_file = st.file_uploader(
+                "選擇要匯入的 Excel 或 CSV 檔案",
+                type=['xlsx', 'csv'],
+                help="支援 .xlsx 或 .csv 格式的檔案"
+            )
+            
+            if uploaded_file is not None:
+                try:
+                    # 根據檔案類型讀取資料
+                    if uploaded_file.name.endswith('.csv'):
+                        imported_df = pd.read_csv(uploaded_file)
+                    else:  # Excel 檔案
+                        imported_df = pd.read_excel(uploaded_file)
+                    
+                    # 驗證欄位
+                    required_columns = ['日期', '類別', '名稱', '價格', '支付方式']
+                    if not all(col in imported_df.columns for col in required_columns):
+                        st.error("檔案格式錯誤！必須包含以下欄位：日期、類別、名稱、價格、支付方式")
+                        st.stop()
+                    
+                    # 驗證資料類型
+                    try:
+                        # 確保日期格式正確
+                        imported_df['日期'] = pd.to_datetime(imported_df['日期']).dt.strftime('%Y-%m-%d')
+                        # 確保價格為數值
+                        imported_df['價格'] = pd.to_numeric(imported_df['價格'])
+                        
+                        # 驗證類別
+                        valid_categories = ["早餐", "午餐", "晚餐", "點心", "交通", "娛樂", "儲值", "其他"]
+                        if not imported_df['類別'].isin(valid_categories).all():
+                            invalid_categories = imported_df[~imported_df['類別'].isin(valid_categories)]['類別'].unique()
+                            st.error(f"發現無效的類別：{', '.join(invalid_categories)}")
+                            st.stop()
+                        
+                        # 驗證支付方式
+                        if not imported_df['支付方式'].isin(PAYMENT_METHODS).all():
+                            invalid_methods = imported_df[~imported_df['支付方式'].isin(PAYMENT_METHODS)]['支付方式'].unique()
+                            st.error(f"發現無效的支付方式：{', '.join(invalid_methods)}")
+                            st.stop()
+                        
+                    except Exception as e:
+                        st.error(f"資料格式錯誤：{str(e)}")
+                        st.stop()
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        import_mode = st.radio(
+                            "選擇匯入模式",
+                            ["附加到現有資料", "覆蓋現有資料"],
+                            help="附加：將新資料加到現有資料後面\n覆蓋：用新資料取代所有現有資料"
+                        )
+                    
+                    with col2:
+                        if st.button("確認匯入", type="primary"):
+                            if import_mode == "附加到現有資料":
+                                # 附加模式
+                                st.session_state.df = pd.concat([st.session_state.df, imported_df], ignore_index=True)
+                            else:
+                                # 覆蓋模式
+                                st.session_state.df = imported_df.copy()
+                            
+                            # 儲存更新後的資料
+                            st.session_state.df.to_csv(USER_DATA_PATH, index=False)
+                            st.success(f"成功匯入 {len(imported_df)} 筆資料！")
+                            st.rerun()
+                    
+                    # 預覽匯入的資料
+                    st.subheader("預覽匯入資料")
+                    st.dataframe(
+                        imported_df,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                    
+                except Exception as e:
+                    st.error(f"匯入失敗：{str(e)}")
+
         # 修改表格和操作區域的佈局
         with st.container():
             # 表格區域
