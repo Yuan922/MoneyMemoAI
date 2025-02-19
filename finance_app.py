@@ -30,11 +30,11 @@ st.set_page_config(
 # 從環境變數讀取使用者資訊
 USERS = {
     "admin": {
-        "password": st.secrets["ADMIN_PASSWORD"],
+        "password": os.getenv("ADMIN_PASSWORD", "e94021107"),  # 從環境變數讀取，如果沒有則使用預設值
         "name": "admin"
     },
     "yuan": {
-        "password": st.secrets["USER_PASSWORD"],
+        "password": os.getenv("USER_PASSWORD", "e94021107"),  # 從環境變數讀取，如果沒有則使用預設值
         "name": "yuan"
     }
 }

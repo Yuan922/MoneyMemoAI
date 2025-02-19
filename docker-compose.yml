@@ -7,6 +7,6 @@ services:
     volumes:
       - .:/app
     environment:
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      USER_PASSWORD: ${USER_PASSWORD}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-e94021107}
+      - USER_PASSWORD=${USER_PASSWORD:-e94021107}
