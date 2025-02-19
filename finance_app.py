@@ -122,7 +122,7 @@ with tab1:
                     st.error("AI 回應內容：" + response.text)
     else:
         with st.form("edit_form"):
-            input_text = st.text_input("請輸入要修改的內容（例如：今天subway的價格是1050、今天下午去komeda的花費是用樂天Pay）")
+            input_text = st.text_input("請輸入要修改的內容（例如：一顆奇異果花150，然後買了章魚生魚片花350是昨天晚上！不是2-20）")
             submit_button = st.form_submit_button("✏️ 修改記錄")
             
             if submit_button and input_text:
@@ -130,35 +130,37 @@ with tab1:
                     # 設定時區為日本時間
                     JST = timezone(timedelta(hours=9))
                     current_time = datetime.now(JST)
+                    yesterday = current_time - timedelta(days=1)
                     
                     prompt = f"""
-                    你是一個資料庫搜尋專家。請從用戶的修改請求中，提取搜尋條件和要修改的內容。
-                    請只關注實際要搜尋和修改的內容，忽略其他描述性文字。
+                    你是一個資料庫搜尋專家。請從用戶的修改請求中，提取要修改的記錄資訊。
+                    如果包含多筆記錄，請分別提取並以陣列形式回傳。
                     
                     當前時間：{current_time.strftime("%Y-%m-%d")}
-                    如果用戶提到"今天"，請使用上述日期。
-
+                    昨天日期：{yesterday.strftime("%Y-%m-%d")}
+                    
                     請回傳以下格式的 JSON：
-                    {{
-                        "search": {{
-                            "名稱": "店名或項目名稱"  // 只需使用最簡單的形式，如：komeda
-                        }},
-                        "update": {{
-                            "價格": 數字,  // 如果要修改價格
-                            "支付方式": "付款方式",  // 如果要修改支付方式
-                            "類別": "分類"  // 如果要修改分類
+                    [
+                        {{
+                            "search": {{
+                                "名稱": "商品名稱",  // 用於搜尋的關鍵字
+                                "價格": 數字  // 可選，用於確認是否為同一筆記錄
+                            }},
+                            "update": {{
+                                "日期": "YYYY-MM-DD",  // 如果要修改日期
+                                "價格": 數字,  // 如果要修改價格
+                                "支付方式": "付款方式",  // 如果要修改支付方式
+                                "類別": "分類"  // 如果要修改分類
+                            }}
                         }}
-                    }}
+                    ]
 
                     範例：
-                    輸入："komeda消費改成650元"
-                    輸出：{{"search": {{"名稱": "komeda"}}, "update": {{"價格": 650}}}}
-
-                    輸入："今天的subway改成用現金"
-                    輸出：{{"search": {{"名稱": "subway", "日期": "{current_time.strftime("%Y-%m-%d")}"}}, "update": {{"支付方式": "現金"}}}}
-
-                    輸入："全家消費改成85元"
-                    輸出：{{"search": {{"名稱": "全家"}}, "update": {{"價格": 85}}}}
+                    輸入："奇異果150元和章魚生魚片350元是昨天買的"
+                    輸出：[
+                        {{"search": {{"名稱": "奇異果", "價格": 150}}, "update": {{"日期": "{yesterday.strftime("%Y-%m-%d")}"}}},
+                        {{"search": {{"名稱": "章魚生魚片", "價格": 350}}, "update": {{"日期": "{yesterday.strftime("%Y-%m-%d")}"}}}
+                    ]
 
                     請處理以下修改請求：
                     {input_text}
@@ -170,33 +172,45 @@ with tab1:
                     if cleaned_response.startswith('```') and cleaned_response.endswith('```'):
                         cleaned_response = cleaned_response[cleaned_response.find('{'):cleaned_response.rfind('}')+1]
                     
-                    result = json.loads(cleaned_response)
+                    results = json.loads(cleaned_response)
                     
-                    # 尋找符合條件的記錄
-                    mask = pd.Series(True, index=st.session_state.df.index)
-                    for key, value in result["search"].items():
-                        if pd.isna(value):  # 處理空值的情況
-                            mask &= pd.isna(st.session_state.df[key])
-                        else:
-                            # 將 DataFrame 中的值和搜尋值都轉換為小寫並去除空白
-                            df_values = st.session_state.df[key].astype(str).str.strip().str.lower()
-                            search_value = str(value).strip().lower()
-                            # 使用 contains 而不是完全匹配
-                            mask &= df_values.str.contains(search_value, case=False, na=False)
+                    # 確保 results 是列表
+                    if not isinstance(results, list):
+                        results = [results]
                     
-                    if mask.any():
-                        # 更新符合條件的記錄
-                        for key, value in result["update"].items():
-                            st.session_state.df.loc[mask, key] = value
+                    # 記錄成功修改的數量
+                    success_count = 0
+                    
+                    # 處理每筆修改請求
+                    for result in results:
+                        # 尋找符合條件的記錄
+                        mask = pd.Series(True, index=st.session_state.df.index)
+                        for key, value in result["search"].items():
+                            if pd.isna(value):  # 處理空值的情況
+                                mask &= pd.isna(st.session_state.df[key])
+                            else:
+                                # 將 DataFrame 中的值和搜尋值都轉換為小寫並去除空白
+                                df_values = st.session_state.df[key].astype(str).str.strip().str.lower()
+                                search_value = str(value).strip().lower()
+                                # 使用 contains 而不是完全匹配
+                                mask &= df_values.str.contains(search_value, case=False, na=False)
                         
+                        if mask.any():
+                            # 更新符合條件的記錄
+                            for key, value in result["update"].items():
+                                st.session_state.df.loc[mask, key] = value
+                            success_count += 1
+                    
+                    if success_count > 0:
                         # 儲存更新後的資料
                         st.session_state.df.to_csv('data/expenses.csv', index=False)
-                        st.success("已更新記錄！")
+                        st.success(f"已更新 {success_count} 筆記錄！")
                     else:
-                        st.error("找不到符合的記錄！請試著簡化搜尋條件（例如：只用店名）。")
+                        st.error("找不到符合的記錄！請試著簡化搜尋條件。")
                     
                 except Exception as e:
                     st.error(f"處理錯誤: {str(e)}")
+                    st.error("AI 回應內容：" + response.text)
 
     # 顯示表格
     edited_df = st.data_editor(
