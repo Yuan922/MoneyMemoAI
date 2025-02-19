@@ -59,7 +59,6 @@ with tab1:
     )
 
     if operation_mode == "新增記錄":
-        # 表單部分
         with st.form("input_form"):
             input_text = st.text_input("文字輸入（範例：晚餐吃拉麵用現金支付980日幣）")
             submit_button = st.form_submit_button("💾 儲存記錄")
@@ -72,6 +71,7 @@ with tab1:
                     
                     prompt = f"""
                     請從以下文字中提取記帳資訊，並以 JSON 格式回傳。
+                    如果包含多筆消費，請分別提取並以陣列形式回傳。
                     
                     當前時間：{current_time.strftime("%Y-%m-%d")}
                     如果沒有提到具體日期，請使用上述日期。
@@ -81,33 +81,41 @@ with tab1:
                     名稱、價格、支付方式（現金/信用卡/樂天Pay/PayPay）
                     
                     請確保回傳的格式完全符合以下範例：
-                    {{"日期": "{current_time.strftime("%Y-%m-%d")}", "類別": "晚餐", "名稱": "拉麵", "價格": 980, "支付方式": "現金"}}
+                    [
+                        {{"日期": "{current_time.strftime("%Y-%m-%d")}", "類別": "晚餐", "名稱": "拉麵", "價格": 980, "支付方式": "現金"}},
+                        {{"日期": "{current_time.strftime("%Y-%m-%d")}", "類別": "點心", "名稱": "飲料", "價格": 150, "支付方式": "現金"}}
+                    ]
                     
                     注意：
                     1. 日期必須是 YYYY-MM-DD 格式
                     2. 如果是下午茶、咖啡廳、飲料店等非正餐的飲食消費，請歸類為「點心」
                     3. 請保持支付方式的原始名稱（如：樂天Pay、PayPay）
+                    4. 即使只有一筆消費，也請使用陣列格式回傳
                     
                     文字：{input_text}
                     """
                     
                     response = model.generate_content(prompt)
-                    result = json.loads(response.text)
+                    results = json.loads(response.text)
                     
-                    # 將 JSON 轉換成自然語言回應
-                    responses = [
-                        f"好的！記下來了～在{result['名稱']}花了{result['價格']}元，用{result['支付方式']}付款的！",
-                        f"了解！{result['名稱']}花了{result['價格']}元，用{result['支付方式']}付款，已經幫你記下來了～",
-                        f"Got it！在{result['名稱']}消費{result['價格']}元，使用{result['支付方式']}，已經記錄好了！"
-                    ]
+                    # 確保 results 是列表
+                    if not isinstance(results, list):
+                        results = [results]
                     
-                    # 隨機選擇一個回應
-                    st.write(random.choice(responses))
+                    # 將每筆記錄加入 DataFrame
+                    for result in results:
+                        new_row = pd.DataFrame([result])
+                        st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
                     
-                    new_row = pd.DataFrame([result])
-                    st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
+                    # 儲存更新後的資料
                     st.session_state.df.to_csv('data/expenses.csv', index=False)
-                    st.success("已新增記錄！")
+                    
+                    # 顯示成功訊息
+                    st.success(f"已新增 {len(results)} 筆記錄！")
+                    
+                    # 顯示每筆記錄的詳細資訊
+                    for result in results:
+                        st.write(f"✅ {result['名稱']}：{result['價格']}元（{result['支付方式']}）")
                     
                 except Exception as e:
                     st.error(f"處理錯誤: {str(e)}")
