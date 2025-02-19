@@ -34,14 +34,18 @@ CURRENCIES = {
 
 # 取得即時匯率
 def get_exchange_rates(base_currency="JPY"):
-    rates = {}
+    rates = {
+        'TWD': 0.23,  # 預設匯率，1日圓約0.23新台幣
+        'USD': 0.0067  # 預設匯率，1日圓約0.0067美元
+    }
     for currency in CURRENCIES.keys():
         if currency != base_currency:
             try:
-                rates[currency] = c.get_rate(base_currency, currency)
+                new_rate = c.get_rate(base_currency, currency)
+                if new_rate is not None:
+                    rates[currency] = new_rate
             except:
-                st.error(f"無法取得 {base_currency} 到 {currency} 的匯率")
-                rates[currency] = None
+                st.warning(f"無法取得即時匯率，使用預設匯率")
     return rates
 
 # 轉換金額
@@ -333,8 +337,8 @@ with tab1:
 
         # 顯示總計金額（多幣別）
         total_amount_jpy = edited_df['價格'].sum()
-        total_amount_twd = total_amount_jpy * exchange_rates.get('TWD', 0)
-        total_amount_usd = total_amount_jpy * exchange_rates.get('USD', 0)
+        total_amount_twd = total_amount_jpy * exchange_rates.get('TWD', 0.23)  # 使用預設值
+        total_amount_usd = total_amount_jpy * exchange_rates.get('USD', 0.0067)  # 使用預設值
 
         st.markdown(f"""
         <div class="total-amount">
@@ -427,9 +431,9 @@ with tab2:
         with col1:
             st.metric("總支出 (JPY)", f"¥{total_expense:,.0f}")
         with col2:
-            st.metric("總支出 (TWD)", f"NT${total_expense * exchange_rates.get('TWD', 0):,.0f}")
+            st.metric("總支出 (TWD)", f"NT${total_expense * exchange_rates.get('TWD', 0.23):,.0f}")
         with col3:
-            st.metric("總支出 (USD)", f"${total_expense * exchange_rates.get('USD', 0):,.2f}")
+            st.metric("總支出 (USD)", f"${total_expense * exchange_rates.get('USD', 0.0067):,.2f}")
         
         col1, col2, col3 = st.columns([1, 1, 1])
         
@@ -476,14 +480,15 @@ with tab2:
         daily_avg = df_analysis.groupby('日期')['價格'].sum().mean()
         st.metric("每日平均支出", f"¥{daily_avg:,.0f}")
 
-        # 新增匯率資訊顯示
+        # 匯率資訊顯示
         st.subheader("即時匯率")
         rate_cols = st.columns(len(exchange_rates))
         for col, (currency, rate) in zip(rate_cols, exchange_rates.items()):
             with col:
                 st.metric(
                     f"JPY → {currency}",
-                    f"{CURRENCIES[currency]} {rate:.4f}"
+                    f"{CURRENCIES[currency]} {rate:.4f}",
+                    help="如果無法取得即時匯率，將使用預設匯率"
                 )
     else:
         st.info('還沒有任何記錄，請先新增支出！')
