@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import json
 import random
 from io import BytesIO
-from forex_python.converter import CurrencyRates
+import requests
 
 # TODO List:
 # 增加修改現有記錄功能
@@ -21,9 +21,6 @@ from forex_python.converter import CurrencyRates
 load_dotenv()
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-pro')
-
-# 初始化匯率轉換器
-c = CurrencyRates()
 
 # 設定支援的幣別
 CURRENCIES = {
@@ -40,29 +37,19 @@ def get_exchange_rates(base_currency="JPY"):
     }
     
     try:
-        # 嘗試一次性獲取所有匯率
-        has_error = False
-        for currency in CURRENCIES.keys():
-            if currency != base_currency:
-                new_rate = c.get_rate(base_currency, currency)
-                if new_rate is not None:
-                    rates[currency] = new_rate
-                else:
-                    has_error = True
-        
-        if has_error:
-            st.warning("無法取得即時匯率，部分幣別使用預設匯率")
-    except:
-        st.warning("無法取得即時匯率，使用預設匯率")
+        # 使用 ExchangeRate-API 的免費端點
+        response = requests.get(f"https://open.er-api.com/v6/latest/{base_currency}")
+        if response.status_code == 200:
+            data = response.json()
+            for currency in CURRENCIES.keys():
+                if currency != base_currency and currency in data['rates']:
+                    rates[currency] = data['rates'][currency]
+        else:
+            st.warning("無法取得即時匯率，使用預設匯率")
+    except Exception as e:
+        st.warning(f"無法取得即時匯率，使用預設匯率")
     
     return rates
-
-# 轉換金額
-def convert_amount(amount, from_currency, to_currency):
-    try:
-        return c.convert(from_currency, to_currency, amount)
-    except:
-        return None
 
 # 資料儲存結構
 if 'df' not in st.session_state:
