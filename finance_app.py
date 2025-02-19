@@ -181,6 +181,32 @@ else:
 
     # 主要記帳介面
     with tab1:
+        # 檢查是否在嘗試存取其他使用者的資料
+        current_user = st.session_state.username
+        file_user = USER_DATA_PATH.split('_')[-1].split('.')[0]
+        
+        if current_user != file_user and current_user != 'admin':
+            st.error("您沒有權限存取此資料")
+            st.stop()
+        
+        # 如果是 admin，顯示使用者選擇器
+        if current_user == 'admin':
+            selected_user = st.selectbox(
+                "選擇要查看的使用者",
+                options=[user for user in USERS.keys()],
+                index=list(USERS.keys()).index(current_user)
+            )
+            # 更新資料路徑
+            USER_DATA_PATH = f'data/expenses_{selected_user}.csv'
+            # 重新載入選定使用者的資料
+            try:
+                st.session_state.df = pd.read_csv(USER_DATA_PATH,
+                    dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
+            except FileNotFoundError:
+                st.session_state.df = pd.DataFrame(columns=[
+                    '日期', '類別', '名稱', '價格', '支付方式'
+                ])
+
         # 新增一個 radio button 來選擇操作模式
         operation_mode = st.radio(
             "選擇操作模式",
@@ -541,6 +567,11 @@ else:
 
     # 分析頁面
     with tab2:
+        # 檢查是否在嘗試存取其他使用者的資料
+        if current_user != file_user and current_user != 'admin':
+            st.error("您沒有權限存取此資料")
+            st.stop()
+        
         if not st.session_state.df.empty:
             # 新增篩選選項
             include_deposit = st.checkbox('包含儲值金額', value=False)
