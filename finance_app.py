@@ -54,41 +54,24 @@ if 'theme' not in st.session_state:
 # 自定義 CSS 樣式
 st.markdown("""
 <style>
-    /* 主題切換開關樣式 */
-    .theme-toggle {
-        position: fixed;
-        top: 1rem;
-        right: 1rem;
-        z-index: 1000;
-    }
-    
-    /* 響應式設計 */
-    @media (max-width: 768px) {
-        .theme-toggle {
-            position: relative;
-            top: 0;
-            right: 0;
-            margin-bottom: 1rem;
-        }
-        
-        /* 在手機版將右側欄移到下方 */
-        [data-testid="column-right"] {
-            width: 100% !important;
-            margin-top: 1rem;
-        }
-        [data-testid="column-left"] {
-            width: 100% !important;
-        }
-    }
-    
     /* 深色模式樣式 */
-    .dark-mode {
+    [data-theme="dark"] {
         background-color: #0E1117;
-        color: #FAFAFA;
     }
-    .dark-mode .total-amount {
+    [data-theme="dark"] .total-amount {
         background-color: #1B1F27;
         color: #FAFAFA;
+    }
+    
+    /* 表格和操作區域的佈局 */
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .action-area {
+        width: 100%;
     }
     
     /* 通用樣式優化 */
@@ -130,6 +113,8 @@ with col_right:
         <script>
             const doc = window.parent.document;
             doc.documentElement.setAttribute('data-theme', '{st.session_state.theme}');
+            // 強制重新載入頁面以應用新主題
+            window.parent.location.reload();
         </script>
         """, unsafe_allow_html=True)
 
@@ -303,10 +288,8 @@ with tab1:
                     st.error("AI 回應內容：" + response.text)
 
     # 修改表格和操作區域的佈局
-    container = st.container()
-    table_col, action_col = container.columns([2, 1])
-    
-    with table_col:
+    with st.container():
+        # 表格區域
         edited_df = st.data_editor(
             st.session_state.df,
             use_container_width=True,
@@ -343,72 +326,75 @@ with tab1:
             column_order=["日期", "類別", "名稱", "支付方式", "價格"]
         )
         
-        # 顯示總計金額（在表格下方）
+        # 顯示總計金額
         total_amount = edited_df['價格'].sum()
         st.markdown(f"""
         <div class="total-amount">
             <strong>總計金額：</strong> ¥{total_amount:,.0f}
         </div>
         """, unsafe_allow_html=True)
-    
-    with action_col:
+        
         # 操作區域（匯出和刪除功能）
-        with st.expander("📥 匯出資料", expanded=True):
-            # 取得資料的起訖日期
-            if not st.session_state.df.empty:
-                start_date = pd.to_datetime(st.session_state.df['日期']).min().strftime('%Y%m%d')
-                end_date = pd.to_datetime(st.session_state.df['日期']).max().strftime('%Y%m%d')
-                date_range = f"{start_date}-{end_date}"
-            else:
-                date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
-            
-            export_format = st.radio(
-                "選擇匯出格式",
-                ["Excel", "CSV"],
-                horizontal=True,
-                key="export_format"
-            )
-            
-            if export_format == "Excel":
-                # 建立 BytesIO 物件
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    st.session_state.df.to_excel(writer, sheet_name='支出記錄', index=False)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            with st.expander("📥 匯出資料", expanded=True):
+                # 取得資料的起訖日期
+                if not st.session_state.df.empty:
+                    start_date = pd.to_datetime(st.session_state.df['日期']).min().strftime('%Y%m%d')
+                    end_date = pd.to_datetime(st.session_state.df['日期']).max().strftime('%Y%m%d')
+                    date_range = f"{start_date}-{end_date}"
+                else:
+                    date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
                 
-                st.download_button(
-                    label="下載 Excel 檔案",
-                    data=output.getvalue(),
-                    file_name=f"支出記錄_{date_range}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
+                export_format = st.radio(
+                    "選擇匯出格式",
+                    ["Excel", "CSV"],
+                    horizontal=True,
+                    key="export_format"
                 )
-            else:
-                csv = st.session_state.df.to_csv(index=False)
-                st.download_button(
-                    label="下載 CSV 檔案",
-                    data=csv,
-                    file_name=f"支出記錄_{date_range}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
+                
+                if export_format == "Excel":
+                    # 建立 BytesIO 物件
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        st.session_state.df.to_excel(writer, sheet_name='支出記錄', index=False)
+                    
+                    st.download_button(
+                        label="下載 Excel 檔案",
+                        data=output.getvalue(),
+                        file_name=f"支出記錄_{date_range}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                else:
+                    csv = st.session_state.df.to_csv(index=False)
+                    st.download_button(
+                        label="下載 CSV 檔案",
+                        data=csv,
+                        file_name=f"支出記錄_{date_range}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
 
-        with st.expander("🗑️ 刪除記錄", expanded=True):
-            # 初始化 selected 狀態
-            if 'selected' not in st.session_state:
-                st.session_state.selected = [False] * len(st.session_state.df)
+        with col2:
+            with st.expander("🗑️ 刪除記錄", expanded=True):
+                # 初始化 selected 狀態
+                if 'selected' not in st.session_state:
+                    st.session_state.selected = [False] * len(st.session_state.df)
 
-            # 確保 selected 列表長度與 DataFrame 相同
-            if len(st.session_state.selected) != len(st.session_state.df):
-                st.session_state.selected = [False] * len(st.session_state.df)
+                # 確保 selected 列表長度與 DataFrame 相同
+                if len(st.session_state.selected) != len(st.session_state.df):
+                    st.session_state.selected = [False] * len(st.session_state.df)
 
-            # 刪除選中的記錄
-            selected_indices = [i for i, selected in enumerate(st.session_state.selected) if selected]
-            if selected_indices and st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
-                st.session_state.df = st.session_state.df.drop(selected_indices).reset_index(drop=True)
-                st.session_state.df.to_csv('data/expenses.csv', index=False)
-                st.session_state.selected = [False] * len(st.session_state.df)
-                st.success("已刪除選中的記錄！")
-                st.rerun()
+                # 刪除選中的記錄
+                selected_indices = [i for i, selected in enumerate(st.session_state.selected) if selected]
+                if selected_indices and st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
+                    st.session_state.df = st.session_state.df.drop(selected_indices).reset_index(drop=True)
+                    st.session_state.df.to_csv('data/expenses.csv', index=False)
+                    st.session_state.selected = [False] * len(st.session_state.df)
+                    st.success("已刪除選中的記錄！")
+                    st.rerun()
 
 # 分析頁面
 with tab2:
