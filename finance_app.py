@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import json
 import random
 from io import BytesIO
+from forex_python.converter import CurrencyRates
 
 # TODO List:
 # 增加修改現有記錄功能
@@ -20,6 +21,35 @@ from io import BytesIO
 load_dotenv()
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 model = genai.GenerativeModel('gemini-pro')
+
+# 初始化匯率轉換器
+c = CurrencyRates()
+
+# 設定支援的幣別
+CURRENCIES = {
+    "JPY": "日圓 ¥",
+    "TWD": "新台幣 NT$",
+    "USD": "美元 $"
+}
+
+# 取得即時匯率
+def get_exchange_rates(base_currency="JPY"):
+    rates = {}
+    for currency in CURRENCIES.keys():
+        if currency != base_currency:
+            try:
+                rates[currency] = c.get_rate(base_currency, currency)
+            except:
+                st.error(f"無法取得 {base_currency} 到 {currency} 的匯率")
+                rates[currency] = None
+    return rates
+
+# 轉換金額
+def convert_amount(amount, from_currency, to_currency):
+    try:
+        return c.convert(from_currency, to_currency, amount)
+    except:
+        return None
 
 # 資料儲存結構
 if 'df' not in st.session_state:
@@ -283,7 +313,7 @@ with tab1:
                     required=True
                 ),
                 "價格": st.column_config.NumberColumn(
-                    "價格",
+                    "價格 (JPY)",
                     min_value=0,
                     required=True,
                     format="%.0f"
@@ -298,11 +328,20 @@ with tab1:
             column_order=["日期", "類別", "名稱", "支付方式", "價格"]
         )
         
-        # 顯示總計金額
-        total_amount = edited_df['價格'].sum()
+        # 取得匯率
+        exchange_rates = get_exchange_rates()
+
+        # 顯示總計金額（多幣別）
+        total_amount_jpy = edited_df['價格'].sum()
+        total_amount_twd = total_amount_jpy * exchange_rates.get('TWD', 0)
+        total_amount_usd = total_amount_jpy * exchange_rates.get('USD', 0)
+
         st.markdown(f"""
         <div class="total-amount">
-            <strong>總計金額：</strong> ¥{total_amount:,.0f}
+            <strong>總計金額：</strong><br>
+            JPY: ¥{total_amount_jpy:,.0f}<br>
+            TWD: NT${total_amount_twd:,.0f}<br>
+            USD: ${total_amount_usd:,.2f}
         </div>
         """, unsafe_allow_html=True)
         
@@ -382,7 +421,15 @@ with tab2:
             
         # 計算總支出
         total_expense = df_analysis['價格'].sum()
-        st.metric("總支出", f"¥{total_expense:,.0f}")
+        
+        # 顯示多幣別總支出
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("總支出 (JPY)", f"¥{total_expense:,.0f}")
+        with col2:
+            st.metric("總支出 (TWD)", f"NT${total_expense * exchange_rates.get('TWD', 0):,.0f}")
+        with col3:
+            st.metric("總支出 (USD)", f"${total_expense * exchange_rates.get('USD', 0):,.2f}")
         
         col1, col2, col3 = st.columns([1, 1, 1])
         
@@ -392,7 +439,7 @@ with tab2:
             fig1 = px.pie(
                 values=category_sum.values,
                 names=category_sum.index,
-                title='類別佔比'
+                title='類別佔比 (JPY ¥{total_expense:,.0f})'
             )
             st.plotly_chart(fig1, use_container_width=True)
             
@@ -402,7 +449,7 @@ with tab2:
             fig2 = px.pie(
                 values=payment_sum.values,
                 names=payment_sum.index,
-                title='支付方式佔比'
+                title='支付方式佔比 (JPY ¥{total_expense:,.0f})'
             )
             st.plotly_chart(fig2, use_container_width=True)
 
@@ -428,5 +475,15 @@ with tab2:
         # 顯示每日平均支出
         daily_avg = df_analysis.groupby('日期')['價格'].sum().mean()
         st.metric("每日平均支出", f"¥{daily_avg:,.0f}")
+
+        # 新增匯率資訊顯示
+        st.subheader("即時匯率")
+        rate_cols = st.columns(len(exchange_rates))
+        for col, (currency, rate) in zip(rate_cols, exchange_rates.items()):
+            with col:
+                st.metric(
+                    f"JPY → {currency}",
+                    f"{CURRENCIES[currency]} {rate:.4f}"
+                )
     else:
         st.info('還沒有任何記錄，請先新增支出！')
