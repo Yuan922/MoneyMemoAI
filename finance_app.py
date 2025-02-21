@@ -468,6 +468,7 @@ else:
 
     # 修改表格和操作區域的佈局
     with st.container():
+        st.markdown("### 📝 支出記錄")
         # 表格區域
         edited_df = st.data_editor(
             st.session_state.df,
@@ -502,9 +503,57 @@ else:
                 )
             },
             hide_index=True,
-            column_order=["日期", "類別", "名稱", "支付方式", "價格"]
+            column_order=["日期", "類別", "名稱", "支付方式", "價格"],
+            key="expense_editor",
+            on_change=lambda: st.session_state.df.to_csv(USER_DATA_PATH, index=False)
         )
+
+        # 匯出功能
+        st.markdown("### 📥 匯出資料")
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         
+        # 取得資料的起訖日期
+        if not st.session_state.df.empty:
+            start_date = pd.to_datetime(st.session_state.df['日期']).min().strftime('%Y%m%d')
+            end_date = pd.to_datetime(st.session_state.df['日期']).max().strftime('%Y%m%d')
+            date_range = f"{start_date}-{end_date}"
+        else:
+            date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            export_format = st.radio(
+                "選擇匯出格式",
+                ["Excel", "CSV"],
+                horizontal=True,
+                key="export_format"
+            )
+        
+        with col2:
+            if export_format == "Excel":
+                # 建立 BytesIO 物件
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    st.session_state.df.to_excel(writer, sheet_name='支出記錄', index=False)
+                
+                st.download_button(
+                    label="下載 Excel 檔案",
+                    data=output.getvalue(),
+                    file_name=f"支出記錄_{date_range}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            else:
+                csv = st.session_state.df.to_csv(index=False)
+                st.download_button(
+                    label="下載 CSV 檔案",
+                    data=csv,
+                    file_name=f"支出記錄_{date_range}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+        st.markdown('</div>', unsafe_allow_html=True)
+
         # 取得匯率
         exchange_rates = get_exchange_rates()
 
@@ -594,50 +643,10 @@ else:
         </div>
         """, unsafe_allow_html=True)
         
-        # 操作區域（匯出和刪除功能）
+        # 操作區域（刪除功能）
         col1, col2 = st.columns(2)
         
         with col1:
-            with st.expander("📥 匯出資料", expanded=True):
-                # 取得資料的起訖日期
-                if not st.session_state.df.empty:
-                    start_date = pd.to_datetime(st.session_state.df['日期']).min().strftime('%Y%m%d')
-                    end_date = pd.to_datetime(st.session_state.df['日期']).max().strftime('%Y%m%d')
-                    date_range = f"{start_date}-{end_date}"
-                else:
-                    date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
-                
-                export_format = st.radio(
-                    "選擇匯出格式",
-                    ["Excel", "CSV"],
-                    horizontal=True,
-                    key="export_format"
-                )
-                
-                if export_format == "Excel":
-                    # 建立 BytesIO 物件
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        st.session_state.df.to_excel(writer, sheet_name='支出記錄', index=False)
-                    
-                    st.download_button(
-                        label="下載 Excel 檔案",
-                        data=output.getvalue(),
-                        file_name=f"支出記錄_{date_range}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-                else:
-                    csv = st.session_state.df.to_csv(index=False)
-                    st.download_button(
-                        label="下載 CSV 檔案",
-                        data=csv,
-                        file_name=f"支出記錄_{date_range}.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-
-        with col2:
             with st.expander("🗑️ 刪除記錄", expanded=True):
                 # 初始化 selected 狀態
                 if 'selected' not in st.session_state:
