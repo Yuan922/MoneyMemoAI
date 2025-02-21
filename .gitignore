@@ -9,6 +9,9 @@ __pycache__/
 # 資料檔案
 data/*.csv
 
+# 備份檔案
+backups/
+
 # 虛擬環境
 venv/
 env/

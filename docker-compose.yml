@@ -10,3 +10,16 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-e94021107}
       - USER_PASSWORD=${USER_PASSWORD:-e94021107}
+
+  backup-service:
+    build: .
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+        apt-get update && 
+        apt-get install -y cron &&
+        echo '0 0 * * * python /app/backup_data.py >> /var/log/cron.log 2>&1' > /etc/cron.d/backup-cron &&
+        chmod 0644 /etc/cron.d/backup-cron &&
+        crontab /etc/cron.d/backup-cron &&
+        cron -f"
