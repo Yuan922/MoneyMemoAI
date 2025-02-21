@@ -45,6 +45,29 @@ if 'username' not in st.session_state:
 if 'df' not in st.session_state:
     st.session_state.df = None
 
+# 登入處理函數
+def handle_login(username, password):
+    if username in USERS and USERS[username]["password"] == password:
+        st.session_state.authenticated = True
+        st.session_state.username = username
+        # 登入成功後立即載入資料
+        try:
+            USER_DATA_PATH = f'data/expenses_{username}.csv'
+            st.session_state.df = pd.read_csv(USER_DATA_PATH,
+                dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
+        except FileNotFoundError:
+            st.session_state.df = pd.DataFrame(columns=[
+                '日期', '類別', '名稱', '價格', '支付方式'
+            ])
+        return True
+    return False
+
+# 登出處理函數
+def handle_logout():
+    st.session_state.authenticated = False
+    st.session_state.username = None
+    st.session_state.df = None
+
 # 登入介面
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1,2,1])
@@ -54,18 +77,7 @@ if not st.session_state.authenticated:
         password = st.text_input("密碼", type="password")
         
         if st.button("登入"):
-            if username in USERS and USERS[username]["password"] == password:
-                st.session_state.authenticated = True
-                st.session_state.username = username
-                # 登入成功後立即載入資料
-                try:
-                    USER_DATA_PATH = f'data/expenses_{username}.csv'
-                    st.session_state.df = pd.read_csv(USER_DATA_PATH,
-                        dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
-                except FileNotFoundError:
-                    st.session_state.df = pd.DataFrame(columns=[
-                        '日期', '類別', '名稱', '價格', '支付方式'
-                    ])
+            if handle_login(username, password):
                 st.rerun()
             else:
                 st.error("帳號或密碼錯誤")
@@ -73,9 +85,7 @@ else:
     # 登出按鈕
     with st.sidebar:
         if st.button("登出"):
-            st.session_state.authenticated = False
-            st.session_state.username = None
-            st.session_state.df = None
+            handle_logout()
             st.rerun()
     
     # 顯示歡迎訊息
