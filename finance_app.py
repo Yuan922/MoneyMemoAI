@@ -489,20 +489,64 @@ else:
             exchange_rates = get_exchange_rates()
 
             # 計算每日合計
-            daily_totals = edited_df.groupby('日期')['價格'].sum().sort_index(ascending=False)
+            daily_totals = edited_df.groupby('日期')['價格'].sum().sort_index()
+            daily_df = pd.DataFrame(daily_totals).reset_index()
+            daily_df['日期'] = pd.to_datetime(daily_df['日期'])
 
             # 顯示每日合計
             st.subheader("每日合計")
-            daily_cols = st.columns(3)
-            for i, (date, amount) in enumerate(daily_totals.items()):
-                with daily_cols[i % 3]:
-                    st.metric(
-                        f"📅 {date}",
-                        f"¥{amount:,.0f}",
-                        help=f"TWD: NT${amount * exchange_rates.get('TWD', 0.23):,.0f}\nUSD: ${amount * exchange_rates.get('USD', 0.0067):,.2f}"
-                    )
-                    if (i + 1) % 3 == 0:
-                        daily_cols = st.columns(3)
+
+            # 圖表類型選擇
+            chart_type = st.radio(
+                "選擇圖表類型",
+                ["折線圖", "長條圖"],
+                horizontal=True,
+                key="daily_chart_type"
+            )
+
+            if chart_type == "折線圖":
+                fig = px.line(
+                    daily_df,
+                    x='日期',
+                    y='價格',
+                    title='每日支出趨勢',
+                    labels={'日期': '日期', '價格': '金額 (JPY)'}
+                )
+            else:
+                fig = px.bar(
+                    daily_df,
+                    x='日期',
+                    y='價格',
+                    title='每日支出趨勢',
+                    labels={'日期': '日期', '價格': '金額 (JPY)'}
+                )
+
+            # 設定互動提示格式
+            fig.update_traces(
+                hovertemplate="日期: %{x}<br>" +
+                "金額: ¥%{y:,.0f}<br>" +
+                f"≈ NT${exchange_rates.get('TWD', 0.23):,.2f} × %{{y:,.0f}}<br>" +
+                f"≈ ${exchange_rates.get('USD', 0.0067):,.4f} × %{{y:,.0f}}"
+            )
+
+            # 設定圖表樣式
+            fig.update_layout(
+                xaxis_title="日期",
+                yaxis_title="金額 (JPY)",
+                hovermode='x unified'
+            )
+
+            # 顯示圖表
+            st.plotly_chart(fig, use_container_width=True)
+
+            # 顯示數值摘要
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("平均每日支出", f"¥{daily_totals.mean():,.0f}")
+            with col2:
+                st.metric("最高單日支出", f"¥{daily_totals.max():,.0f}")
+            with col3:
+                st.metric("最低單日支出", f"¥{daily_totals.min():,.0f}")
 
             # 顯示總計金額（多幣別）
             total_amount_jpy = edited_df['價格'].sum()
