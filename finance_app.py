@@ -12,16 +12,9 @@ import requests
 import yaml
 from yaml.loader import SafeLoader
 
-# TODO List:
-# 增加修改現有記錄功能
-#    - 判斷輸入文字是否包含"修改紀錄"關鍵字
-#    - 如果是修改請求，尋找符合的記錄進行更新
-#    - 避免重複新增相同記錄
-#    - 考慮增加時間範圍限制，例如只能修改最近一週的記錄
-
 # 設定頁面
 st.set_page_config(
-    page_title="AI智能記帳",
+    page_title="打字記帳",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="collapsed"
