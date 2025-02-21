@@ -22,33 +22,27 @@ st.set_page_config(
 )
 
 # 初始化 cookie manager
-def get_manager():
-    return stx.CookieManager(key='my_cookies')
-
-cookie_manager = get_manager()
+cookie_manager = stx.CookieManager()
 
 # 從 cookie 中獲取登入狀態
 def get_login_state():
-    if cookie_manager.get(cookie='authenticated') == 'true':
+    cookie_username = cookie_manager.get(cookie='username')
+    if cookie_username:
         st.session_state.authenticated = True
-        st.session_state.username = cookie_manager.get(cookie='username')
+        st.session_state.username = cookie_username
         return True
     return False
 
 # 設定登入狀態
 def set_login_state(username):
-    cookie_manager.set(cookie='authenticated', val='true', key='auth_cookie', expires_at=datetime.now() + timedelta(days=30))
-    cookie_manager.set(cookie='username', val=username, key='username_cookie', expires_at=datetime.now() + timedelta(days=30))
+    cookie_manager.set('username', username, expires_at=datetime.now() + timedelta(days=30))
     st.session_state.authenticated = True
     st.session_state.username = username
 
 # 清除登入狀態
 def clear_login_state():
-    cookie_manager.delete(cookie='authenticated', key='delete_auth')
-    cookie_manager.delete(cookie='username', key='delete_username')
-    st.session_state.authenticated = False
-    st.session_state.username = None
-    st.session_state.df = None
+    cookie_manager.delete('username')
+    st.session_state.clear()
 
 # 從 Streamlit secrets 讀取使用者資訊
 USERS = {
