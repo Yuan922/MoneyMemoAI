@@ -11,6 +11,7 @@ from io import BytesIO
 import requests
 import yaml
 from yaml.loader import SafeLoader
+import extra_streamlit_components as stx
 
 # 設定頁面
 st.set_page_config(
@@ -19,6 +20,32 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# 初始化 cookie manager
+cookie_manager = stx.CookieManager()
+
+# 從 cookie 中獲取登入狀態
+def get_login_state():
+    if cookie_manager.get('authenticated') == 'true':
+        st.session_state.authenticated = True
+        st.session_state.username = cookie_manager.get('username')
+        return True
+    return False
+
+# 設定登入狀態
+def set_login_state(username):
+    cookie_manager.set('authenticated', 'true', expires_at=datetime.now() + timedelta(days=30))
+    cookie_manager.set('username', username, expires_at=datetime.now() + timedelta(days=30))
+    st.session_state.authenticated = True
+    st.session_state.username = username
+
+# 清除登入狀態
+def clear_login_state():
+    cookie_manager.delete('authenticated')
+    cookie_manager.delete('username')
+    st.session_state.authenticated = False
+    st.session_state.username = None
+    st.session_state.df = None
 
 # 從 Streamlit secrets 讀取使用者資訊
 USERS = {
@@ -39,17 +66,16 @@ if "ADMIN_PASSWORD" not in st.secrets or "USER_PASSWORD" not in st.secrets:
 
 # 初始化 session state
 if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = False
+    st.session_state.authenticated = get_login_state()
 if 'username' not in st.session_state:
-    st.session_state.username = None
+    st.session_state.username = cookie_manager.get('username')
 if 'df' not in st.session_state:
     st.session_state.df = None
 
 # 登入處理函數
 def handle_login(username, password):
     if username in USERS and USERS[username]["password"] == password:
-        st.session_state.authenticated = True
-        st.session_state.username = username
+        set_login_state(username)
         # 登入成功後立即載入資料
         try:
             USER_DATA_PATH = f'data/expenses_{username}.csv'
@@ -64,9 +90,7 @@ def handle_login(username, password):
 
 # 登出處理函數
 def handle_logout():
-    st.session_state.authenticated = False
-    st.session_state.username = None
-    st.session_state.df = None
+    clear_login_state()
 
 # 登入介面
 if not st.session_state.authenticated:
