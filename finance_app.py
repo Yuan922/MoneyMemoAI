@@ -26,23 +26,34 @@ cookie_manager = stx.CookieManager()
 
 # 從 cookie 中獲取登入狀態
 def get_login_state():
-    cookie_username = cookie_manager.get(cookie='username')
-    if cookie_username:
-        st.session_state.authenticated = True
-        st.session_state.username = cookie_username
-        return True
+    try:
+        username = cookie_manager.get(cookie='username')
+        if username and username in USERS:
+            st.session_state.authenticated = True
+            st.session_state.username = username
+            return True
+    except Exception as e:
+        st.error(f"讀取 cookie 時發生錯誤：{str(e)}")
     return False
 
 # 設定登入狀態
 def set_login_state(username):
-    cookie_manager.set('username', username, expires_at=datetime.now() + timedelta(days=30))
-    st.session_state.authenticated = True
-    st.session_state.username = username
+    try:
+        expiry = datetime.now() + timedelta(days=30)
+        cookie_manager.set('username', username, expires_at=expiry)
+        st.session_state.authenticated = True
+        st.session_state.username = username
+    except Exception as e:
+        st.error(f"設定 cookie 時發生錯誤：{str(e)}")
 
 # 清除登入狀態
 def clear_login_state():
-    cookie_manager.delete('username')
-    st.session_state.clear()
+    try:
+        cookie_manager.delete('username')
+    except Exception as e:
+        st.error(f"清除 cookie 時發生錯誤：{str(e)}")
+    finally:
+        st.session_state.clear()
 
 # 從 Streamlit secrets 讀取使用者資訊
 USERS = {
@@ -63,26 +74,45 @@ if "ADMIN_PASSWORD" not in st.secrets or "USER_PASSWORD" not in st.secrets:
 
 # 初始化 session state
 if 'authenticated' not in st.session_state:
-    st.session_state.authenticated = get_login_state()
+    st.session_state.authenticated = False
 if 'username' not in st.session_state:
-    st.session_state.username = cookie_manager.get(cookie='username')
+    st.session_state.username = None
 if 'df' not in st.session_state:
     st.session_state.df = None
+
+# 檢查登入狀態
+if not st.session_state.authenticated:
+    is_logged_in = get_login_state()
+    if is_logged_in:
+        st.rerun()
 
 # 登入處理函數
 def handle_login(username, password):
     if username in USERS and USERS[username]["password"] == password:
-        set_login_state(username)
-        # 登入成功後立即載入資料
         try:
+            # 設定登入狀態
+            set_login_state(username)
+            
+            # 確保資料目錄存在
+            os.makedirs('data', exist_ok=True)
+            
+            # 設定用戶資料路徑
             USER_DATA_PATH = f'data/expenses_{username}.csv'
-            st.session_state.df = pd.read_csv(USER_DATA_PATH,
-                dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
-        except FileNotFoundError:
-            st.session_state.df = pd.DataFrame(columns=[
-                '日期', '類別', '名稱', '價格', '支付方式'
-            ])
-        return True
+            
+            # 載入用戶資料
+            try:
+                st.session_state.df = pd.read_csv(USER_DATA_PATH,
+                    dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
+            except FileNotFoundError:
+                st.session_state.df = pd.DataFrame(columns=[
+                    '日期', '類別', '名稱', '價格', '支付方式'
+                ])
+            
+            return True
+        except Exception as e:
+            st.error(f"登入過程中發生錯誤：{str(e)}")
+            clear_login_state()
+            return False
     return False
 
 # 登出處理函數
@@ -99,6 +129,7 @@ if not st.session_state.authenticated:
         
         if st.button("登入"):
             if handle_login(username, password):
+                st.success("登入成功！")
                 st.rerun()
             else:
                 st.error("帳號或密碼錯誤")
@@ -106,7 +137,8 @@ else:
     # 登出按鈕
     with st.sidebar:
         if st.button("登出"):
-            handle_logout()
+            clear_login_state()
+            st.success("已成功登出！")
             st.rerun()
     
     # 顯示歡迎訊息
