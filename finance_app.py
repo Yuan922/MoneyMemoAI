@@ -42,6 +42,8 @@ if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'username' not in st.session_state:
     st.session_state.username = None
+if 'df' not in st.session_state:
+    st.session_state.df = None
 
 # 登入介面
 if not st.session_state.authenticated:
@@ -55,6 +57,15 @@ if not st.session_state.authenticated:
             if username in USERS and USERS[username]["password"] == password:
                 st.session_state.authenticated = True
                 st.session_state.username = username
+                # 登入成功後立即載入資料
+                try:
+                    USER_DATA_PATH = f'data/expenses_{username}.csv'
+                    st.session_state.df = pd.read_csv(USER_DATA_PATH,
+                        dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
+                except FileNotFoundError:
+                    st.session_state.df = pd.DataFrame(columns=[
+                        '日期', '類別', '名稱', '價格', '支付方式'
+                    ])
                 st.rerun()
             else:
                 st.error("帳號或密碼錯誤")
@@ -64,6 +75,7 @@ else:
         if st.button("登出"):
             st.session_state.authenticated = False
             st.session_state.username = None
+            st.session_state.df = None
             st.rerun()
     
     # 顯示歡迎訊息
@@ -107,11 +119,9 @@ else:
         return rates
 
     # 資料儲存結構
-    if 'df' not in st.session_state:
+    if st.session_state.df is None:
         try:
             os.makedirs('data', exist_ok=True)
-            # 修改資料路徑，加入用戶名稱
-            USER_DATA_PATH = f'data/expenses_{st.session_state.username}.csv'
             try:
                 st.session_state.df = pd.read_csv(USER_DATA_PATH,
                     dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
@@ -504,9 +514,13 @@ else:
             },
             hide_index=True,
             column_order=["日期", "類別", "名稱", "支付方式", "價格"],
-            key="expense_editor",
-            on_change=lambda: st.session_state.df.to_csv(USER_DATA_PATH, index=False)
+            key="expense_editor"
         )
+
+        # 如果資料有變更，更新 session state 和檔案
+        if not edited_df.equals(st.session_state.df):
+            st.session_state.df = edited_df.copy()
+            st.session_state.df.to_csv(USER_DATA_PATH, index=False)
 
         # 匯出功能
         st.markdown("### 📥 匯出資料")
