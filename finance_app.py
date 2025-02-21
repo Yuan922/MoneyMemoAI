@@ -22,15 +22,28 @@ st.set_page_config(
 )
 
 # 初始化 cookie manager
-cookie_manager = stx.CookieManager()
+cookie_manager = stx.CookieManager(key='auth_cookies')
 
 # 從 cookie 中獲取登入狀態
 def get_login_state():
     try:
         username = cookie_manager.get(cookie='username')
         if username and username in USERS:
-            st.session_state.authenticated = True
-            st.session_state.username = username
+            if 'authenticated' not in st.session_state or not st.session_state.authenticated:
+                st.session_state.authenticated = True
+                st.session_state.username = username
+                # 確保資料目錄存在
+                os.makedirs('data', exist_ok=True)
+                # 設定用戶資料路徑
+                USER_DATA_PATH = f'data/expenses_{username}.csv'
+                # 載入用戶資料
+                try:
+                    st.session_state.df = pd.read_csv(USER_DATA_PATH,
+                        dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
+                except FileNotFoundError:
+                    st.session_state.df = pd.DataFrame(columns=[
+                        '日期', '類別', '名稱', '價格', '支付方式'
+                    ])
             return True
     except Exception as e:
         st.error(f"讀取 cookie 時發生錯誤：{str(e)}")
@@ -39,8 +52,9 @@ def get_login_state():
 # 設定登入狀態
 def set_login_state(username):
     try:
-        expiry = datetime.now() + timedelta(days=30)
-        cookie_manager.set('username', username, expires_at=expiry)
+        # 設定 cookie，使用 UTC 時間
+        expiry = datetime.now(timezone.utc) + timedelta(days=30)
+        cookie_manager.set('username', username, expires_at=expiry, key='set_username')
         st.session_state.authenticated = True
         st.session_state.username = username
     except Exception as e:
@@ -49,11 +63,12 @@ def set_login_state(username):
 # 清除登入狀態
 def clear_login_state():
     try:
-        cookie_manager.delete('username')
+        cookie_manager.delete('username', key='delete_username')
     except Exception as e:
         st.error(f"清除 cookie 時發生錯誤：{str(e)}")
     finally:
-        st.session_state.clear()
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
 
 # 從 Streamlit secrets 讀取使用者資訊
 USERS = {
