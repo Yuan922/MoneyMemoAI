@@ -496,48 +496,60 @@ else:
             # 顯示每日合計
             st.subheader("每日合計")
 
-            # 圖表類型選擇
-            chart_type = st.radio(
-                "選擇圖表類型",
-                ["折線圖", "長條圖"],
-                horizontal=True,
-                key="daily_chart_type"
-            )
+            # 使用 tabs 來切換圖表類型
+            chart_tab1, chart_tab2 = st.tabs(["折線圖", "長條圖"])
 
-            if chart_type == "折線圖":
-                fig = px.line(
+            # 計算換算金額
+            daily_df['TWD'] = daily_df['價格'] * exchange_rates.get('TWD', 0.23)
+            daily_df['USD'] = daily_df['價格'] * exchange_rates.get('USD', 0.0067)
+
+            with chart_tab1:
+                # 折線圖
+                fig_line = px.line(
                     daily_df,
                     x='日期',
                     y='價格',
                     title='每日支出趨勢',
                     labels={'日期': '日期', '價格': '金額 (JPY)'}
                 )
-            else:
-                fig = px.bar(
+                # 設定互動提示格式
+                fig_line.update_traces(
+                    hovertemplate="日期: %{x}<br>" +
+                    "JPY: ¥%{y:,.0f}<br>" +
+                    "TWD: NT$%{customdata[0]:,.0f}<br>" +
+                    "USD: $%{customdata[1]:.2f}",
+                    customdata=daily_df[['TWD', 'USD']]
+                )
+                fig_line.update_layout(
+                    xaxis_title="日期",
+                    yaxis_title="金額 (JPY)",
+                    hovermode='x unified'
+                )
+                st.plotly_chart(fig_line, use_container_width=True)
+
+            with chart_tab2:
+                # 長條圖
+                fig_bar = px.bar(
                     daily_df,
                     x='日期',
                     y='價格',
                     title='每日支出趨勢',
                     labels={'日期': '日期', '價格': '金額 (JPY)'}
                 )
-
-            # 設定互動提示格式
-            fig.update_traces(
-                hovertemplate="日期: %{x}<br>" +
-                "金額: ¥%{y:,.0f}<br>" +
-                f"≈ NT${exchange_rates.get('TWD', 0.23):,.2f} × %{{y:,.0f}}<br>" +
-                f"≈ ${exchange_rates.get('USD', 0.0067):,.4f} × %{{y:,.0f}}"
-            )
-
-            # 設定圖表樣式
-            fig.update_layout(
-                xaxis_title="日期",
-                yaxis_title="金額 (JPY)",
-                hovermode='x unified'
-            )
-
-            # 顯示圖表
-            st.plotly_chart(fig, use_container_width=True)
+                # 設定互動提示格式
+                fig_bar.update_traces(
+                    hovertemplate="日期: %{x}<br>" +
+                    "JPY: ¥%{y:,.0f}<br>" +
+                    "TWD: NT$%{customdata[0]:,.0f}<br>" +
+                    "USD: $%{customdata[1]:.2f}",
+                    customdata=daily_df[['TWD', 'USD']]
+                )
+                fig_bar.update_layout(
+                    xaxis_title="日期",
+                    yaxis_title="金額 (JPY)",
+                    hovermode='x unified'
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
 
             # 顯示數值摘要
             col1, col2, col3 = st.columns(3)
