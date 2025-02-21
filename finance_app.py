@@ -488,6 +488,22 @@ else:
             # 取得匯率
             exchange_rates = get_exchange_rates()
 
+            # 計算每日合計
+            daily_totals = edited_df.groupby('日期')['價格'].sum().sort_index(ascending=False)
+
+            # 顯示每日合計
+            st.subheader("每日合計")
+            daily_cols = st.columns(3)
+            for i, (date, amount) in enumerate(daily_totals.items()):
+                with daily_cols[i % 3]:
+                    st.metric(
+                        f"📅 {date}",
+                        f"¥{amount:,.0f}",
+                        help=f"TWD: NT${amount * exchange_rates.get('TWD', 0.23):,.0f}\nUSD: ${amount * exchange_rates.get('USD', 0.0067):,.2f}"
+                    )
+                    if (i + 1) % 3 == 0:
+                        daily_cols = st.columns(3)
+
             # 顯示總計金額（多幣別）
             total_amount_jpy = edited_df['價格'].sum()
             total_amount_twd = total_amount_jpy * exchange_rates.get('TWD', 0.23)  # 使用預設值
