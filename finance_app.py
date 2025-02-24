@@ -34,9 +34,23 @@ USER_DATA_PATH = f'data/expenses_{st.session_state.username}.csv'
 # 初始化資料框架
 if 'df' not in st.session_state:
     try:
-        st.session_state.df = pd.read_csv(USER_DATA_PATH,
-            dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
+        # Read with explicit date parsing
+        df_temp = pd.read_csv(USER_DATA_PATH)
+        # Convert dates to consistent format
+        df_temp['日期'] = pd.to_datetime(df_temp['日期'], errors='coerce').dt.strftime('%Y-%m-%d')
+        st.session_state.df = df_temp.astype({
+            '日期': 'str',
+            '類別': 'str',
+            '名稱': 'str',
+            '價格': 'float',
+            '支付方式': 'str'
+        })
     except FileNotFoundError:
+        st.session_state.df = pd.DataFrame(columns=[
+            '日期', '類別', '名稱', '價格', '支付方式'
+        ])
+    except Exception as e:
+        st.error(f"載入資料時發生錯誤: {str(e)}")
         st.session_state.df = pd.DataFrame(columns=[
             '日期', '類別', '名稱', '價格', '支付方式'
         ])
@@ -61,7 +75,6 @@ def get_exchange_rates(base_currency="JPY"):
     }
     
     try:
-        # 使用 ExchangeRate-API 的免費端點
         response = requests.get(f"https://open.er-api.com/v6/latest/{base_currency}")
         if response.status_code == 200:
             data = response.json()
@@ -78,12 +91,7 @@ def get_exchange_rates(base_currency="JPY"):
 # 自定義 CSS 樣式
 st.markdown("""
 <style>
-    /* 主要容器樣式 */
-    .main-container {
-        padding: 1rem;
-    }
-    
-    /* 卡片樣式 */
+    .main-container {padding: 1rem;}
     .card {
         background-color: #ffffff;
         border-radius: 8px;
@@ -91,36 +99,19 @@ st.markdown("""
         margin-bottom: 1rem;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    
-    /* 表格和操作區域的佈局 */
     .main-content {
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
     }
-    
-    .action-area {
-        width: 100%;
-    }
-    
-    /* 通用樣式優化 */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
+    .action-area {width: 100%;}
+    .stTabs [data-baseweb="tab-list"] {gap: 8px;}
     .stTabs [data-baseweb="tab"] {
         padding: 8px 16px;
         border-radius: 4px;
     }
-    .stTabs [data-baseweb="tab-list"] button {
-        font-size: 16px;
-    }
-
-    /* 表格樣式優化 */
-    .stDataFrame td, .stDataFrame th {
-        padding: 8px;
-    }
-    
-    /* 總計金額樣式 */
+    .stTabs [data-baseweb="tab-list"] button {font-size: 16px;}
+    .stDataFrame td, .stDataFrame th {padding: 8px;}
     .total-amount {
         text-align: right;
         padding: 16px;
@@ -130,16 +121,12 @@ st.markdown("""
         background-color: #f8f9fa;
         border: 1px solid #e9ecef;
     }
-
-    /* 分析區塊樣式 */
     .analysis-section {
         background-color: #f8f9fa;
         border-radius: 8px;
         padding: 1rem;
         margin-top: 1rem;
     }
-
-    /* 圖表容器樣式 */
     .chart-container {
         background-color: white;
         border-radius: 8px;
@@ -149,7 +136,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 移除分頁，直接使用主要介面
 # 定義支付方式選項
 PAYMENT_METHODS = ["現金", "信用卡", "樂天Pay", "PayPay"]
 
@@ -158,6 +144,8 @@ current_user = st.session_state.username
 
 # 更新：每次都重新設定當前使用者的資料路徑
 if current_user == 'admin':
+    # 注意：這裡假設有一個 USERS 字典，需要定義或移除此功能
+    USERS = {'admin': 'admin', 'yuan': 'yuan'}  # 臨時定義
     selected_user = st.selectbox(
         "選擇要查看的使用者",
         options=[user for user in USERS.keys()],
@@ -169,12 +157,19 @@ else:
 
 # 重新載入當前使用者的資料
 try:
-    st.session_state.df = pd.read_csv(USER_DATA_PATH,
-        dtype={'日期': str, '類別': str, '名稱': str, '價格': float, '支付方式': str})
+    df_temp = pd.read_csv(USER_DATA_PATH)
+    df_temp['日期'] = pd.to_datetime(df_temp['日期'], errors='coerce').dt.strftime('%Y-%m-%d')
+    st.session_state.df = df_temp.astype({
+        '日期': 'str',
+        '類別': 'str',
+        '名稱': 'str',
+        '價格': 'float',
+        '支付方式': 'str'
+    })
 except FileNotFoundError:
-    st.session_state.df = pd.DataFrame(columns=[
-        '日期', '類別', '名稱', '價格', '支付方式'
-    ])
+    st.session_state.df = pd.DataFrame(columns=['日期', '類別', '名稱', '價格', '支付方式'])
+except Exception as e:
+    st.error(f"重新載入資料時發生錯誤: {str(e)}")
 
 # 新增一個 radio button 來選擇操作模式
 operation_mode = st.radio(
@@ -190,7 +185,6 @@ if operation_mode == "新增記錄":
         
         if submit_button and input_text:
             try:
-                # 設定時區為日本時間
                 JST = timezone(timedelta(hours=9))
                 current_time = datetime.now(JST)
                 
@@ -223,28 +217,22 @@ if operation_mode == "新增記錄":
                 response = model.generate_content(prompt)
                 results = json.loads(response.text)
                 
-                # 確保 results 是列表
                 if not isinstance(results, list):
                     results = [results]
                 
-                # 將每筆記錄加入 DataFrame
                 for result in results:
                     new_row = pd.DataFrame([result])
                     st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
                 
-                # 儲存更新後的資料
                 st.session_state.df.to_csv(USER_DATA_PATH, index=False)
-                
-                # 顯示成功訊息
                 st.success(f"已新增 {len(results)} 筆記錄！")
                 
-                # 顯示每筆記錄的詳細資訊
                 for result in results:
                     st.write(f"✅ {result['名稱']}：{result['價格']}元（{result['支付方式']}）")
                 
             except Exception as e:
                 st.error(f"處理錯誤: {str(e)}")
-                st.error("AI 回應內容：" + response.text)
+                st.error("AI 回應內容：" + (response.text if 'response' in locals() else "無回應"))
 else:
     with st.form("edit_form"):
         input_text = st.text_input("請輸入要修改的內容（例如：一顆奇異果花150，然後買了章魚生魚片花350是昨天晚上！不是2-20）")
@@ -252,7 +240,6 @@ else:
         
         if submit_button and input_text:
             try:
-                # 設定時區為日本時間
                 JST = timezone(timedelta(hours=9))
                 current_time = datetime.now(JST)
                 yesterday = current_time - timedelta(days=1)
@@ -268,66 +255,55 @@ else:
                 [
                     {{
                         "search": {{
-                            "名稱": "商品名稱",  // 用於搜尋的關鍵字
-                            "價格": 數字  // 可選，用於確認是否為同一筆記錄
+                            "名稱": "商品名稱",
+                            "價格": 數字
                         }},
                         "update": {{
-                            "日期": "YYYY-MM-DD",  // 如果要修改日期
-                            "價格": 數字,  // 如果要修改價格
-                            "支付方式": "付款方式",  // 如果要修改支付方式
-                            "類別": "分類"  // 如果要修改分類
+                            "日期": "YYYY-MM-DD",
+                            "價格": 數字,
+                            "支付方式": "付款方式",
+                            "類別": "分類"
                         }}
                     }}
                 ]
-
+                
                 範例：
                 輸入："奇異果150元和章魚生魚片350元是昨天買的"
                 輸出：[
                     {{"search": {{"名稱": "奇異果", "價格": 150}}, "update": {{"日期": "{yesterday.strftime('%Y-%m-%d')}"}}}},
                     {{"search": {{"名稱": "章魚生魚片", "價格": 350}}, "update": {{"日期": "{yesterday.strftime('%Y-%m-%d')}"}}}}
                 ]
-
+                
                 請處理以下修改請求：
                 {input_text}
                 """
                 
                 response = model.generate_content(prompt)
-                # 清理 AI 回應中可能的格式標記
                 cleaned_response = response.text.strip()
                 if cleaned_response.startswith('```') and cleaned_response.endswith('```'):
                     cleaned_response = cleaned_response[cleaned_response.find('{'):cleaned_response.rfind('}')+1]
                 
                 results = json.loads(cleaned_response)
-                
-                # 確保 results 是列表
                 if not isinstance(results, list):
                     results = [results]
                 
-                # 記錄成功修改的數量
                 success_count = 0
-                
-                # 處理每筆修改請求
                 for result in results:
-                    # 尋找符合條件的記錄
                     mask = pd.Series(True, index=st.session_state.df.index)
                     for key, value in result["search"].items():
-                        if pd.isna(value):  # 處理空值的情況
+                        if pd.isna(value):
                             mask &= pd.isna(st.session_state.df[key])
                         else:
-                            # 將 DataFrame 中的值和搜尋值都轉換為小寫並去除空白
                             df_values = st.session_state.df[key].astype(str).str.strip().str.lower()
                             search_value = str(value).strip().lower()
-                            # 使用 contains 而不是完全匹配
                             mask &= df_values.str.contains(search_value, case=False, na=False)
                     
                     if mask.any():
-                        # 更新符合條件的記錄
                         for key, value in result["update"].items():
                             st.session_state.df.loc[mask, key] = value
                         success_count += 1
                 
                 if success_count > 0:
-                    # 儲存更新後的資料
                     st.session_state.df.to_csv(USER_DATA_PATH, index=False)
                     st.success(f"已更新 {success_count} 筆記錄！")
                 else:
@@ -335,9 +311,9 @@ else:
                 
             except Exception as e:
                 st.error(f"處理錯誤: {str(e)}")
-                st.error("AI 回應內容：" + response.text)
+                st.error("AI 回應內容：" + (response.text if 'response' in locals() else "無回應"))
 
-# 新增一個匯入區塊
+# 匯入區塊
 with st.expander("📤 匯入資料", expanded=False):
     uploaded_file = st.file_uploader(
         "選擇要匯入的 Excel 或 CSV 檔案",
@@ -347,36 +323,29 @@ with st.expander("📤 匯入資料", expanded=False):
     
     if uploaded_file is not None:
         try:
-            # 根據檔案類型讀取資料
             if uploaded_file.name.endswith('.csv'):
                 imported_df = pd.read_csv(uploaded_file)
-            else:  # Excel 檔案
+            else:
                 imported_df = pd.read_excel(uploaded_file)
             
-            # 驗證欄位
             required_columns = ['日期', '類別', '名稱', '價格', '支付方式']
             if not all(col in imported_df.columns for col in required_columns):
                 st.error("檔案格式錯誤！必須包含以下欄位：日期、類別、名稱、價格、支付方式")
                 st.stop()
             
-            # 驗證資料類型
             try:
-                # 確保日期格式正確
-                imported_df['日期'] = pd.to_datetime(imported_df['日期']).dt.strftime('%Y-%m-%d')
-                # 確保價格為數值
-                imported_df['價格'] = pd.to_numeric(imported_df['價格'])
+                imported_df['日期'] = pd.to_datetime(imported_df['日期'], errors='coerce').dt.strftime('%Y-%m-%d')
+                imported_df['價格'] = pd.to_numeric(imported_df['價格'], errors='coerce')
                 
-                # 驗證類別
                 valid_categories = ["早餐", "午餐", "晚餐", "點心", "交通", "娛樂", "儲值", "其他"]
                 if not imported_df['類別'].isin(valid_categories).all():
                     invalid_categories = imported_df[~imported_df['類別'].isin(valid_categories)]['類別'].unique()
-                    st.error(f"發現無效的類別：{', '.join(invalid_categories)}")
+                    st.error(f"發現無效的類別：{', '.join(map(str, invalid_categories))}")
                     st.stop()
                 
-                # 驗證支付方式
                 if not imported_df['支付方式'].isin(PAYMENT_METHODS).all():
                     invalid_methods = imported_df[~imported_df['支付方式'].isin(PAYMENT_METHODS)]['支付方式'].unique()
-                    st.error(f"發現無效的支付方式：{', '.join(invalid_methods)}")
+                    st.error(f"發現無效的支付方式：{', '.join(map(str, invalid_methods))}")
                     st.stop()
                 
             except Exception as e:
@@ -394,24 +363,16 @@ with st.expander("📤 匯入資料", expanded=False):
             with col2:
                 if st.button("確認匯入", type="primary"):
                     if import_mode == "附加到現有資料":
-                        # 附加模式
                         st.session_state.df = pd.concat([st.session_state.df, imported_df], ignore_index=True)
                     else:
-                        # 覆蓋模式
                         st.session_state.df = imported_df.copy()
                     
-                    # 儲存更新後的資料
                     st.session_state.df.to_csv(USER_DATA_PATH, index=False)
                     st.success(f"成功匯入 {len(imported_df)} 筆資料！")
                     st.rerun()
             
-            # 預覽匯入的資料
             st.subheader("預覽匯入資料")
-            st.dataframe(
-                imported_df,
-                use_container_width=True,
-                hide_index=True
-            )
+            st.dataframe(imported_df, use_container_width=True, hide_index=True)
             
         except Exception as e:
             st.error(f"匯入失敗：{str(e)}")
@@ -419,45 +380,22 @@ with st.expander("📤 匯入資料", expanded=False):
 # 修改表格和操作區域的佈局
 with st.container():
     st.markdown("### 📝 支出記錄")
-    # 表格區域
     edited_df = st.data_editor(
         st.session_state.df,
         use_container_width=True,
         num_rows="dynamic",
         column_config={
-            "日期": st.column_config.TextColumn(
-                "日期",
-                help="請使用 YYYY-MM-DD 格式",
-                required=True,
-                validate="^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
-            ),
-            "類別": st.column_config.SelectboxColumn(
-                "類別",
-                options=["早餐", "午餐", "晚餐", "點心", "交通", "娛樂", "儲值", "其他"],
-                required=True
-            ),
-            "名稱": st.column_config.TextColumn(
-                "名稱",
-                required=True
-            ),
-            "價格": st.column_config.NumberColumn(
-                "價格 (JPY)",
-                min_value=0,
-                required=True,
-                format="%.0f"
-            ),
-            "支付方式": st.column_config.SelectboxColumn(
-                "支付方式",
-                options=PAYMENT_METHODS,
-                required=True
-            )
+            "日期": st.column_config.TextColumn("日期", help="請使用 YYYY-MM-DD 格式", required=True, validate="^[0-9]{4}-[0-9]{2}-[0-9]{2}$"),
+            "類別": st.column_config.SelectboxColumn("類別", options=["早餐", "午餐", "晚餐", "點心", "交通", "娛樂", "儲值", "其他"], required=True),
+            "名稱": st.column_config.TextColumn("名稱", required=True),
+            "價格": st.column_config.NumberColumn("價格 (JPY)", min_value=0, required=True, format="%.0f"),
+            "支付方式": st.column_config.SelectboxColumn("支付方式", options=PAYMENT_METHODS, required=True)
         },
         hide_index=True,
         column_order=["日期", "類別", "名稱", "支付方式", "價格"],
         key="expense_editor"
     )
 
-    # 如果資料有變更，更新 session state 和檔案
     if not edited_df.equals(st.session_state.df):
         st.session_state.df = edited_df.copy()
         st.session_state.df.to_csv(USER_DATA_PATH, index=False)
@@ -466,39 +404,27 @@ with st.container():
     st.markdown("### 📥 匯出資料")
     st.markdown('<div class="card">', unsafe_allow_html=True)
     
-    # 取得資料的起訖日期
     if not st.session_state.df.empty:
-        # 清理日期格式
-        st.session_state.df['日期'] = (st.session_state.df['日期']
-            .astype(str)
-            .str.replace(' 00:00:00', '')  # 移除時間部分
-            .str.strip()  # 移除多餘空格
-        )
-        
-        # 轉換並取得起訖日期
-        date_series = pd.to_datetime(st.session_state.df['日期'], format='%Y-%m-%d', errors='coerce')
-        start_date = date_series.min().strftime('%Y%m%d')
-        end_date = date_series.max().strftime('%Y%m%d')
-        date_range = f"{start_date}-{end_date}"
+        try:
+            dates = pd.to_datetime(st.session_state.df['日期'], format='%Y-%m-%d', errors='coerce')
+            start_date = dates.min().strftime('%Y%m%d')
+            end_date = dates.max().strftime('%Y%m%d')
+            date_range = f"{start_date}-{end_date}"
+        except Exception as e:
+            st.error(f"日期處理錯誤: {str(e)}")
+            date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
     else:
         date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
     
     col1, col2 = st.columns(2)
     with col1:
-        export_format = st.radio(
-            "選擇匯出格式",
-            ["Excel", "CSV"],
-            horizontal=True,
-            key="export_format"
-        )
+        export_format = st.radio("選擇匯出格式", ["Excel", "CSV"], horizontal=True, key="export_format")
     
     with col2:
         if export_format == "Excel":
-            # 建立 BytesIO 物件
             output = BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 st.session_state.df.to_excel(writer, sheet_name='支出記錄', index=False)
-            
             st.download_button(
                 label="下載 Excel 檔案",
                 data=output.getvalue(),
@@ -517,26 +443,18 @@ with st.container():
             )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 取得匯率
     exchange_rates = get_exchange_rates()
-
-    # 計算每日合計
     daily_totals = edited_df.groupby('日期')['價格'].sum().sort_index()
     daily_df = pd.DataFrame(daily_totals).reset_index()
-    daily_df['日期'] = pd.to_datetime(daily_df['日期'])
+    daily_df['日期'] = pd.to_datetime(daily_df['日期'], format='%Y-%m-%d', errors='coerce')
 
-    # 顯示每日合計
     st.subheader("每日合計")
-
-    # 使用 tabs 來切換圖表類型
     chart_tab1, chart_tab2 = st.tabs(["折線圖", "長條圖"])
 
-    # 計算換算金額
     daily_df['TWD'] = daily_df['價格'] * exchange_rates.get('TWD', 0.23)
     daily_df['USD'] = daily_df['價格'] * exchange_rates.get('USD', 0.0067)
 
     with chart_tab1:
-        # 折線圖
         fig_line = px.line(
             daily_df,
             x='日期',
@@ -544,23 +462,14 @@ with st.container():
             title='每日支出趨勢',
             labels={'日期': '日期', '價格': '金額 (JPY)'}
         )
-        # 設定互動提示格式
         fig_line.update_traces(
-            hovertemplate="日期: %{x}<br>" +
-            "JPY: ¥%{y:,.0f}<br>" +
-            "TWD: NT$%{customdata[0]:,.0f}<br>" +
-            "USD: $%{customdata[1]:.2f}",
+            hovertemplate="日期: %{x}<br>JPY: ¥%{y:,.0f}<br>TWD: NT$%{customdata[0]:,.0f}<br>USD: $%{customdata[1]:.2f}",
             customdata=daily_df[['TWD', 'USD']]
         )
-        fig_line.update_layout(
-            xaxis_title="日期",
-            yaxis_title="金額 (JPY)",
-            hovermode='x unified'
-        )
+        fig_line.update_layout(xaxis_title="日期", yaxis_title="金額 (JPY)", hovermode='x unified')
         st.plotly_chart(fig_line, use_container_width=True)
 
     with chart_tab2:
-        # 長條圖
         fig_bar = px.bar(
             daily_df,
             x='日期',
@@ -568,22 +477,13 @@ with st.container():
             title='每日支出趨勢',
             labels={'日期': '日期', '價格': '金額 (JPY)'}
         )
-        # 設定互動提示格式
         fig_bar.update_traces(
-            hovertemplate="日期: %{x}<br>" +
-            "JPY: ¥%{y:,.0f}<br>" +
-            "TWD: NT$%{customdata[0]:,.0f}<br>" +
-            "USD: $%{customdata[1]:.2f}",
+            hovertemplate="日期: %{x}<br>JPY: ¥%{y:,.0f}<br>TWD: NT$%{customdata[0]:,.0f}<br>USD: $%{customdata[1]:.2f}",
             customdata=daily_df[['TWD', 'USD']]
         )
-        fig_bar.update_layout(
-            xaxis_title="日期",
-            yaxis_title="金額 (JPY)",
-            hovermode='x unified'
-        )
+        fig_bar.update_layout(xaxis_title="日期", yaxis_title="金額 (JPY)", hovermode='x unified')
         st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 顯示數值摘要
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("平均每日支出", f"¥{daily_totals.mean():,.0f}")
@@ -592,10 +492,9 @@ with st.container():
     with col3:
         st.metric("最低單日支出", f"¥{daily_totals.min():,.0f}")
 
-    # 顯示總計金額（多幣別）
     total_amount_jpy = edited_df['價格'].sum()
-    total_amount_twd = total_amount_jpy * exchange_rates.get('TWD', 0.23)  # 使用預設值
-    total_amount_usd = total_amount_jpy * exchange_rates.get('USD', 0.0067)  # 使用預設值
+    total_amount_twd = total_amount_jpy * exchange_rates.get('TWD', 0.23)
+    total_amount_usd = total_amount_jpy * exchange_rates.get('USD', 0.0067)
 
     st.markdown(f"""
     <div class="total-amount">
@@ -606,20 +505,13 @@ with st.container():
     </div>
     """, unsafe_allow_html=True)
     
-    # 操作區域（刪除功能）
     col1, col2 = st.columns(2)
-    
     with col1:
         with st.expander("🗑️ 刪除記錄", expanded=True):
-            # 初始化 selected 狀態
             if 'selected' not in st.session_state:
                 st.session_state.selected = [False] * len(st.session_state.df)
-
-            # 確保 selected 列表長度與 DataFrame 相同
             if len(st.session_state.selected) != len(st.session_state.df):
                 st.session_state.selected = [False] * len(st.session_state.df)
-
-            # 刪除選中的記錄
             selected_indices = [i for i, selected in enumerate(st.session_state.selected) if selected]
             if selected_indices and st.button("🗑️ 刪除選中的記錄", type="secondary", use_container_width=True):
                 st.session_state.df = st.session_state.df.drop(selected_indices).reset_index(drop=True)
@@ -628,23 +520,18 @@ with st.container():
                 st.success("已刪除選中的記錄！")
                 st.rerun()
 
-# 在表格區域之後，新增分析區塊
+# 分析區塊
 with st.container():
-    st.markdown("### 📝 支出分析")
-    
-    # 新增篩選選項
+    st.markdown("### 📊 支出分析")
     include_deposit = st.checkbox('包含儲值金額', value=False)
     
-    # 根據篩選條件準備資料
     if not include_deposit:
         df_analysis = st.session_state.df[st.session_state.df['類別'] != '儲值']
     else:
         df_analysis = st.session_state.df.copy()
     
-    # 計算總支出
     total_expense = df_analysis['價格'].sum()
     
-    # 顯示多幣別總支出
     st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -655,44 +542,27 @@ with st.container():
         st.metric("總支出 (USD)", f"${total_expense * exchange_rates.get('USD', 0.0067):,.2f}")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # 圖表分析
     col1, col2 = st.columns(2)
-    
     with col1:
         st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        # 類別分析
         category_sum = df_analysis.groupby('類別')['價格'].sum()
-        fig1 = px.pie(
-            values=category_sum.values,
-            names=category_sum.index,
-            title='類別佔比分析'
-        )
+        fig1 = px.pie(values=category_sum.values, names=category_sum.index, title='類別佔比分析')
         fig1.update_traces(textinfo='percent+label')
         st.plotly_chart(fig1, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
         st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-        # 支付方式分析
         payment_sum = df_analysis.groupby('支付方式')['價格'].sum()
-        fig2 = px.pie(
-            values=payment_sum.values,
-            names=payment_sum.index,
-            title='支付方式分析'
-        )
+        fig2 = px.pie(values=payment_sum.values, names=payment_sum.index, title='支付方式分析')
         fig2.update_traces(textinfo='percent+label')
         st.plotly_chart(fig2, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # 匯率資訊顯示
     st.markdown("### 💱 即時匯率")
     st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
     rate_cols = st.columns(len(exchange_rates))
     for col, (currency, rate) in zip(rate_cols, exchange_rates.items()):
         with col:
-            st.metric(
-                f"JPY → {currency}",
-                f"{CURRENCIES[currency]} {rate:.4f}",
-                help="如果無法取得即時匯率，將使用預設匯率"
-            )
+            st.metric(f"JPY → {currency}", f"{CURRENCIES[currency]} {rate:.4f}", help="如果無法取得即時匯率，將使用預設匯率")
     st.markdown('</div>', unsafe_allow_html=True)
