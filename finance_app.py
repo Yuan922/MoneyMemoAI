@@ -468,8 +468,9 @@ with st.container():
     
     # 取得資料的起訖日期
     if not st.session_state.df.empty:
-        start_date = pd.to_datetime(st.session_state.df['日期']).min().strftime('%Y%m%d')
-        end_date = pd.to_datetime(st.session_state.df['日期']).max().strftime('%Y%m%d')
+        # Specify the date format explicitly
+        start_date = pd.to_datetime(st.session_state.df['日期'], format='%Y-%m-%d').min().strftime('%Y%m%d')
+        end_date = pd.to_datetime(st.session_state.df['日期'], format='%Y-%m-%d').max().strftime('%Y%m%d')
         date_range = f"{start_date}-{end_date}"
     else:
         date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
