@@ -29,7 +29,33 @@ def inject_custom_css():
             margin-bottom: 1rem;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        /* ... rest of CSS remains the same ... */
+        .main-content {display: flex; flex-direction: column; gap: 1.5rem;}
+        .action-area {width: 100%;}
+        .stTabs [data-baseweb="tab-list"] {gap: 8px;}
+        .stTabs [data-baseweb="tab"] {padding: 8px 16px; border-radius: 4px;}
+        .stTabs [data-baseweb="tab-list"] button {font-size: 16px;}
+        .stDataFrame td, .stDataFrame th {padding: 8px;}
+        .total-amount {
+            text-align: right;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 1.1em;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+        }
+        .analysis-section {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .chart-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -193,6 +219,65 @@ def display_input_form(model, df, file_path):
                 except Exception as e:
                     st.error(f"處理錯誤: {str(e)}")
 
+def display_import_section(df, file_path):
+    with st.expander("📤 匯入資料", expanded=False):
+        uploaded_file = st.file_uploader(
+            "選擇要匯入的 Excel 或 CSV 檔案",
+            type=['xlsx', 'csv'],
+            help="支援 .xlsx 或 .csv 格式的檔案"
+        )
+        
+        if uploaded_file is not None:
+            try:
+                if uploaded_file.name.endswith('.csv'):
+                    imported_df = pd.read_csv(uploaded_file)
+                else:
+                    imported_df = pd.read_excel(uploaded_file)
+                
+                required_columns = ['日期', '類別', '名稱', '價格', '支付方式']
+                if not all(col in imported_df.columns for col in required_columns):
+                    st.error("檔案格式錯誤！必須包含以下欄位：日期、類別、名稱、價格、支付方式")
+                    return df
+                
+                imported_df['日期'] = pd.to_datetime(imported_df['日期'], errors='coerce').dt.strftime('%Y-%m-%d')
+                imported_df['價格'] = pd.to_numeric(imported_df['價格'], errors='coerce')
+                
+                if not imported_df['類別'].isin(VALID_CATEGORIES).all():
+                    invalid_categories = imported_df[~imported_df['類別'].isin(VALID_CATEGORIES)]['類別'].unique()
+                    st.error(f"發現無效的類別：{', '.join(map(str, invalid_categories))}")
+                    return df
+                
+                if not imported_df['支付方式'].isin(PAYMENT_METHODS).all():
+                    invalid_methods = imported_df[~imported_df['支付方式'].isin(PAYMENT_METHODS)]['支付方式'].unique()
+                    st.error(f"發現無效的支付方式：{', '.join(map(str, invalid_methods))}")
+                    return df
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    import_mode = st.radio(
+                        "選擇匯入模式",
+                        ["附加到現有資料", "覆蓋現有資料"],
+                        help="附加：將新資料加到現有資料後面\n覆蓋：用新資料取代所有現有資料"
+                    )
+                
+                with col2:
+                    if st.button("確認匯入", type="primary"):
+                        if import_mode == "附加到現有資料":
+                            df = pd.concat([df, imported_df], ignore_index=True)
+                        else:
+                            df = imported_df.copy()
+                        save_data(df, file_path)
+                        st.session_state.df = df
+                        st.success(f"成功匯入 {len(imported_df)} 筆資料！")
+                        st.rerun()
+                
+                st.subheader("預覽匯入資料")
+                st.dataframe(imported_df, use_container_width=True, hide_index=True)
+                
+            except Exception as e:
+                st.error(f"匯入失敗：{str(e)}")
+    return df
+
 def display_data_editor(df, file_path):
     edited_df = st.data_editor(
         df,
@@ -242,11 +327,73 @@ def display_export_section(df):
                 mime="text/csv"
             )
 
+def display_daily_charts(df, exchange_rates):
+    daily_totals = df.groupby('日期')['價格'].sum().sort_index()
+    daily_df = pd.DataFrame(daily_totals).reset_index()
+    daily_df['日期'] = pd.to_datetime(daily_df['日期'], format='%Y-%m-%d', errors='coerce')
+    daily_df['TWD'] = daily_df['價格'] * exchange_rates.get('TWD', 0.23)
+    daily_df['USD'] = daily_df['價格'] * exchange_rates.get('USD', 0.0067)
+
+    st.subheader("每日合計")
+    chart_tab1, chart_tab2 = st.tabs(["折線圖", "長條圖"])
+
+    with chart_tab1:
+        fig_line = px.line(
+            daily_df,
+            x='日期',
+            y='價格',
+            title='每日支出趨勢',
+            labels={'日期': '日期', '價格': '金額 (JPY)'}
+        )
+        fig_line.update_traces(
+            hovertemplate="日期: %{x}<br>JPY: ¥%{y:,.0f}<br>TWD: NT$%{customdata[0]:,.0f}<br>USD: $%{customdata[1]:.2f}",
+            customdata=daily_df[['TWD', 'USD']]
+        )
+        fig_line.update_layout(xaxis_title="日期", yaxis_title="金額 (JPY)", hovermode='x unified')
+        st.plotly_chart(fig_line, use_container_width=True)
+
+    with chart_tab2:
+        fig_bar = px.bar(
+            daily_df,
+            x='日期',
+            y='價格',
+            title='每日支出趨勢',
+            labels={'日期': '日期', '價格': '金額 (JPY)'}
+        )
+        fig_bar.update_traces(
+            hovertemplate="日期: %{x}<br>JPY: ¥%{y:,.0f}<br>TWD: NT$%{customdata[0]:,.0f}<br>USD: $%{customdata[1]:.2f}",
+            customdata=daily_df[['TWD', 'USD']]
+        )
+        fig_bar.update_layout(xaxis_title="日期", yaxis_title="金額 (JPY)", hovermode='x unified')
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("平均每日支出", f"¥{daily_totals.mean():,.0f}")
+    with col2:
+        st.metric("最高單日支出", f"¥{daily_totals.max():,.0f}")
+    with col3:
+        st.metric("最低單日支出", f"¥{daily_totals.min():,.0f}")
+
+    total_amount_jpy = df['價格'].sum()
+    total_amount_twd = total_amount_jpy * exchange_rates.get('TWD', 0.23)
+    total_amount_usd = total_amount_jpy * exchange_rates.get('USD', 0.0067)
+
+    st.markdown(f"""
+    <div class="total-amount">
+        <strong>總計金額：</strong><br>
+        JPY: ¥{total_amount_jpy:,.0f}<br>
+        TWD: NT${total_amount_twd:,.0f}<br>
+        USD: ${total_amount_usd:,.2f}
+    </div>
+    """, unsafe_allow_html=True)
+
 def display_analysis(df, exchange_rates):
     include_deposit = st.checkbox('包含儲值金額', value=False)
     df_analysis = df if include_deposit else df[df['類別'] != '儲值']
     
     total_expense = df_analysis['價格'].sum()
+    st.markdown('<div class="analysis-section">', unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("總支出 (JPY)", f"¥{total_expense:,.0f}")
@@ -254,16 +401,24 @@ def display_analysis(df, exchange_rates):
         st.metric("總支出 (TWD)", f"NT${total_expense * exchange_rates.get('TWD', 0.23):,.0f}")
     with col3:
         st.metric("總支出 (USD)", f"${total_expense * exchange_rates.get('USD', 0.0067):,.2f}")
-
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     col1, col2 = st.columns(2)
     with col1:
+        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
         fig1 = px.pie(df_analysis.groupby('類別')['價格'].sum().reset_index(), 
                      values='價格', names='類別', title='類別佔比分析')
+        fig1.update_traces(textinfo='percent+label')
         st.plotly_chart(fig1, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
     with col2:
+        st.markdown('<div class="chart-container">', unsafe_allow_html=True)
         fig2 = px.pie(df_analysis.groupby('支付方式')['價格'].sum().reset_index(), 
                      values='價格', names='支付方式', title='支付方式分析')
+        fig2.update_traces(textinfo='percent+label')
         st.plotly_chart(fig2, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # Main Function
 def main():
@@ -277,11 +432,15 @@ def main():
     st.title("打字記帳")
     
     display_input_form(model, st.session_state.df, file_path)
+    st.session_state.df = display_import_section(st.session_state.df, file_path)
+    
     st.markdown("### 📝 支出記錄")
     edited_df = display_data_editor(st.session_state.df, file_path)
     
     st.markdown("### 📥 匯出資料")
     display_export_section(edited_df)
+    
+    display_daily_charts(edited_df, exchange_rates)
     
     st.markdown("### 📊 支出分析")
     display_analysis(edited_df, exchange_rates)
