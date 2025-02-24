@@ -468,9 +468,17 @@ with st.container():
     
     # 取得資料的起訖日期
     if not st.session_state.df.empty:
-        # Specify the date format explicitly
-        start_date = pd.to_datetime(st.session_state.df['日期'], format='%Y-%m-%d').min().strftime('%Y%m%d')
-        end_date = pd.to_datetime(st.session_state.df['日期'], format='%Y-%m-%d').max().strftime('%Y%m%d')
+        # 清理日期格式
+        st.session_state.df['日期'] = (st.session_state.df['日期']
+            .astype(str)
+            .str.replace(' 00:00:00', '')  # 移除時間部分
+            .str.strip()  # 移除多餘空格
+        )
+        
+        # 轉換並取得起訖日期
+        date_series = pd.to_datetime(st.session_state.df['日期'], format='%Y-%m-%d', errors='coerce')
+        start_date = date_series.min().strftime('%Y%m%d')
+        end_date = date_series.max().strftime('%Y%m%d')
         date_range = f"{start_date}-{end_date}"
     else:
         date_range = datetime.now(timezone(timedelta(hours=9))).strftime('%Y%m%d')
@@ -622,7 +630,7 @@ with st.container():
 
 # 在表格區域之後，新增分析區塊
 with st.container():
-    st.markdown("### �� 支出分析")
+    st.markdown("### 📝 支出分析")
     
     # 新增篩選選項
     include_deposit = st.checkbox('包含儲值金額', value=False)
